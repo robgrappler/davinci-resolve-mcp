@@ -49,7 +49,7 @@ def send_request(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"Request error: {e}")
         return {"success": False, "error": str(e)}
 
-def test_server_connection() -> bool:
+def run_server_connection_test() -> bool:
     """Test basic connection to DaVinci Resolve via the server."""
     logger.info("Testing server connection...")
     
@@ -63,7 +63,7 @@ def test_server_connection() -> bool:
         logger.error(f"❌ Server connection failed: {result.get('error', 'Unknown error')}")
         return False
 
-def test_project_settings() -> bool:
+def run_project_settings_test() -> bool:
     """Test setting project settings with different parameter types."""
     logger.info("Testing project settings parameter handling...")
     
@@ -96,7 +96,7 @@ def test_project_settings() -> bool:
         logger.error(f"    Float test: {'✅ Passed' if success3 else '❌ Failed'}")
         return False
 
-def test_color_page_operations() -> bool:
+def run_color_page_operations_test() -> bool:
     """Test color page operations with automatic clip selection."""
     logger.info("Testing color page operations...")
     
@@ -135,7 +135,7 @@ def test_color_page_operations() -> bool:
         logger.error(f"    Set color wheel: {'✅ Passed' if success3 else '❌ Failed'}")
         return False
 
-def test_render_queue_operations() -> bool:
+def run_render_queue_operations_test() -> bool:
     """Test render queue operations with improved helpers."""
     logger.info("Testing render queue operations...")
     
@@ -173,7 +173,7 @@ def test_render_queue_operations() -> bool:
         logger.error(f"    Add to render queue: {'✅ Passed' if success3 else '❌ Failed but helpers working' if helper_working else '❌ Failed'}")
         return False
 
-def test_error_handling_with_empty_timeline() -> bool:
+def run_error_handling_with_empty_timeline_test() -> bool:
     """Test how the color operations handle an empty timeline."""
     logger.info("Testing error handling with empty timeline...")
     
@@ -221,7 +221,7 @@ def test_error_handling_with_empty_timeline() -> bool:
         logger.error(f"    Improved error message: {'✅ Passed' if improved_error else '❌ Failed'}")
         return False
 
-def test_parameter_validation() -> bool:
+def run_parameter_validation_test() -> bool:
     """Test parameter validation with various types and edge cases."""
     logger.info("Testing parameter validation with various types...")
     
@@ -263,6 +263,36 @@ def test_parameter_validation() -> bool:
         logger.error(f"❌ Parameter validation test failed for {total - passed}/{total} types")
         return False
 
+
+def test_server_connection():
+    """Pytest entrypoint for server connection validation."""
+    assert run_server_connection_test()
+
+
+def test_project_settings():
+    """Pytest entrypoint for project settings validation."""
+    assert run_project_settings_test()
+
+
+def test_color_page_operations():
+    """Pytest entrypoint for color page operations."""
+    assert run_color_page_operations_test()
+
+
+def test_render_queue_operations():
+    """Pytest entrypoint for render queue operations."""
+    assert run_render_queue_operations_test()
+
+
+def test_error_handling_with_empty_timeline():
+    """Pytest entrypoint for empty timeline error handling."""
+    assert run_error_handling_with_empty_timeline_test()
+
+
+def test_parameter_validation():
+    """Pytest entrypoint for parameter validation."""
+    assert run_parameter_validation_test()
+
 def print_test_summary(results: Dict[str, bool]) -> None:
     """Print a summary of all test results."""
     logger.info("\n" + "=" * 50)
@@ -292,25 +322,25 @@ def main() -> None:
     results = {}
     
     # Test server connection first
-    connection_result = test_server_connection()
+    connection_result = run_server_connection_test()
     results["Server Connection"] = connection_result
     
     # Only continue with other tests if connection is successful
     if connection_result:
         # Test project settings
-        results["Project Settings"] = test_project_settings()
+        results["Project Settings"] = run_project_settings_test()
         
         # Test color page operations
-        results["Color Page Operations"] = test_color_page_operations()
+        results["Color Page Operations"] = run_color_page_operations_test()
         
         # Test render queue operations
-        results["Render Queue Operations"] = test_render_queue_operations()
+        results["Render Queue Operations"] = run_render_queue_operations_test()
         
         # Test error handling with empty timeline
-        results["Empty Timeline Error Handling"] = test_error_handling_with_empty_timeline()
+        results["Empty Timeline Error Handling"] = run_error_handling_with_empty_timeline_test()
         
         # Test parameter validation
-        results["Parameter Validation"] = test_parameter_validation()
+        results["Parameter Validation"] = run_parameter_validation_test()
     else:
         logger.error("Skipping remaining tests due to server connection failure")
         results["Project Settings"] = False

@@ -48,8 +48,8 @@ def send_request(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"Request error: {e}")
         return {"success": False, "error": str(e)}
 
-def test_basic_timeline_creation():
-    """Test basic timeline creation."""
+def run_basic_timeline_creation() -> bool:
+    """Perform basic timeline creation and return success."""
     logger.info("Testing basic timeline creation...")
     
     # Create a test timeline with default settings
@@ -59,12 +59,12 @@ def test_basic_timeline_creation():
     if "error" in result and result.get("error"):
         logger.error(f"❌ Basic timeline creation failed: {result.get('error')}")
         return False
-    else:
-        logger.info(f"✅ Basic timeline created: {timeline_name}")
-        return True
 
-def test_custom_timeline_creation():
-    """Test enhanced timeline creation with custom parameters."""
+    logger.info(f"✅ Basic timeline created: {timeline_name}")
+    return True
+
+def run_custom_timeline_creation() -> bool:
+    """Perform enhanced custom timeline creation and return success."""
     logger.info("Testing custom timeline creation...")
     
     # Create a custom timeline with specific parameters
@@ -110,14 +110,24 @@ def test_custom_timeline_creation():
         
         return True
 
+
+def test_basic_timeline_creation():
+    """Pytest entrypoint for basic timeline creation."""
+    assert run_basic_timeline_creation()
+
+
+def test_custom_timeline_creation():
+    """Pytest entrypoint for custom timeline creation."""
+    assert run_custom_timeline_creation()
+
 def main():
     """Run the timeline creation tests."""
     logger.info("Starting DaVinci Resolve MCP custom timeline creation tests")
     logger.info("=" * 60)
     
     # Run tests
-    basic_result = test_basic_timeline_creation()
-    custom_result = test_custom_timeline_creation()
+    basic_result = run_basic_timeline_creation()
+    custom_result = run_custom_timeline_creation()
     
     # Summary
     logger.info("=" * 60)
