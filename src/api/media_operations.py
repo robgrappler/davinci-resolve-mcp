@@ -36,13 +36,27 @@ def list_media_pool_clips(resolve) -> List[Dict[str, Any]]:
     # Format clip info
     clip_info = []
     for clip in clips:
-        if clip:
-            clip_info.append({
-                "name": clip.GetName(),
-                "type": clip.GetClipProperty()["Type"],
-                "duration": clip.GetClipProperty()["Duration"],
-                "fps": clip.GetClipProperty().get("FPS", "Unknown")
-            })
+        if not clip:
+            continue
+
+        # Some clip-like objects in the media pool may not implement GetClipProperty
+        get_props = getattr(clip, "GetClipProperty", None)
+        if not callable(get_props):
+            logger.warning(
+                "Skipping media pool item without callable GetClipProperty: name=%r type=%r",
+                getattr(clip, "GetName", lambda: "<unknown>")(),
+                type(clip),
+            )
+            continue
+
+        props = get_props() or {}
+
+        clip_info.append({
+            "name": clip.GetName(),
+            "type": props.get("Type"),
+            "duration": props.get("Duration"),
+            "fps": props.get("FPS", "Unknown"),
+        })
     
     return clip_info if clip_info else [{"info": "No clips found in the media pool"}]
 
@@ -307,13 +321,31 @@ def add_clip_to_timeline(resolve, clip_name: str, timeline_name: str = None) -> 
     if not media_pool:
         return "Error: Failed to get Media Pool"
     
-    # Get all clips in root folder
+    # Get all clips in root folder and first-level subfolders so we can
+    # reliably find clips that live inside bins (e.g. segment bins).
     root_folder = media_pool.GetRootFolder()
-    clips = root_folder.GetClipList()
+    if not root_folder:
+        return "Error: Failed to get Root Folder"
+
+    all_clips = []
+
+    # Clips directly under the Master bin
+    root_clips = root_folder.GetClipList()
+    if root_clips:
+        all_clips.extend(root_clips)
+
+    # Clips inside first‑level bins
+    folders = root_folder.GetSubFolderList()
+    for folder in folders:
+        if not folder:
+            continue
+        folder_clips = folder.GetClipList()
+        if folder_clips:
+            all_clips.extend(folder_clips)
     
     target_clip = None
-    for clip in clips:
-        if clip.GetName() == clip_name:
+    for clip in all_clips:
+        if clip and clip.GetName() == clip_name:
             target_clip = clip
             break
     
@@ -905,8 +937,45 @@ def create_sub_clip(resolve, clip_name: str, start_frame: int, end_frame: int,
         return f"Error: Failed to set in/out points on clip '{clip_name}'"
     
     try:
-        # Create the subclip using CreateSubClip
-        sub_clip = media_pool.CreateSubClip(sub_clip_name, source_clip)
+        # Debug log before creating the subclip to help diagnose API issues
+        logger.info(
+            "DEBUG media_pool.CreateSubClip: clip=%s sub_name=%s start=%s end=%s media_pool_type=%r",
+            clip_name,
+            sub_clip_name,
+            start_frame,
+            end_frame,
+            type(media_pool),
+        )
+
+        # Resolve API differences: some versions expose CreateSubClip on the MediaPool,
+        # some on the clip object, and some not at all.
+        media_pool_create = getattr(media_pool, "CreateSubClip", None)
+        clip_create = getattr(source_clip, "CreateSubClip", None)
+
+        if not callable(media_pool_create) and not callable(clip_create):
+            logger.warning(
+                "Subclip creation not supported: no MediaPool.CreateSubClip or Clip.CreateSubClip on %r / %r",
+                type(media_pool),
+                type(source_clip),
+            )
+            # Best-effort clear marks before returning
+            try:
+                source_clip.ClearMarkInOut()
+            except Exception:
+                pass
+
+            return (
+                "Error: Subclip creation is not supported by the current DaVinci Resolve "
+                "scripting API (no CreateSubClip method available). "
+                "Please create the subclip manually in the Media Pool."
+            )
+
+        # Prefer MediaPool.CreateSubClip when available; fall back to a clip-level API if present
+        if callable(media_pool_create):
+            sub_clip = media_pool_create(sub_clip_name, source_clip)
+        else:
+            # Heuristic signature for possible clip-level API
+            sub_clip = clip_create(sub_clip_name, start_frame, end_frame)
         
         if sub_clip:
             # Clear the mark in/out points from the source clip
@@ -926,4 +995,475 @@ def create_sub_clip(resolve, clip_name: str, start_frame: int, end_frame: int,
         except:
             pass
         
-        return f"Error creating subclip: {str(e)}" 
+        return f"Error creating subclip: {str(e)}"
+
+
+def create_pseudo_subclip(resolve, clip_name: str, start_frame: int, end_frame: int,
+                           sub_clip_name: str = None, bin_name: str = None) -> str:
+    """Create a "pseudo-subclip" as a dedicated trimmed timeline.
+
+    This works around the lack of MediaPool.CreateSubClip in some Resolve builds by:
+    - Creating a new empty timeline named after the requested subclip
+    - Temporarily setting in/out marks on the source clip
+    - Appending only that trimmed range into the new timeline via AppendToTimeline
+
+    The resulting timeline can be used as a nested source in other timelines.
+
+    Args:
+        resolve: The DaVinci Resolve instance
+        clip_name: Name of the source clip in the Media Pool
+        start_frame: Start frame (in point)
+        end_frame: End frame (out point)
+        sub_clip_name: Optional human-friendly name for the pseudo-subclip
+        bin_name: Currently ignored (timelines live in the Timelines root in most Resolve UIs)
+
+    Returns:
+        String describing success or failure.
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+
+    if not clip_name:
+        return "Error: Clip name cannot be empty"
+
+    if start_frame >= end_frame:
+        return "Error: Start frame must be less than end frame"
+
+    if start_frame < 0:
+        return "Error: Start frame cannot be negative"
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+
+    # Locate the source clip in the media pool (root + first-level subfolders)
+    root_folder = media_pool.GetRootFolder()
+    if not root_folder:
+        return "Error: Failed to get Root Folder"
+
+    all_clips = []
+
+    root_clips = root_folder.GetClipList()
+    if root_clips:
+        all_clips.extend(root_clips)
+
+    folders = root_folder.GetSubFolderList()
+    for folder in folders:
+        if folder:
+            folder_clips = folder.GetClipList()
+            if folder_clips:
+                all_clips.extend(folder_clips)
+
+    source_clip = None
+    for clip in all_clips:
+        if clip and clip.GetName() == clip_name:
+            source_clip = clip
+            break
+
+    if not source_clip:
+        return f"Error: Source clip '{clip_name}' not found in Media Pool"
+
+    # Derive a stable timeline name and avoid collisions
+    base_name = sub_clip_name or f"{clip_name}_subclip"
+    tl_name = f"{base_name}_TL"
+
+    existing_names = set()
+    try:
+        tl_count = current_project.GetTimelineCount()
+        for i in range(1, tl_count + 1):
+            tl = current_project.GetTimelineByIndex(i)
+            if tl:
+                existing_names.add(tl.GetName())
+    except Exception as e:
+        logger.warning("Failed to enumerate existing timelines when creating pseudo-subclip: %s", e)
+
+    final_name = tl_name
+    suffix = 2
+    while final_name in existing_names and suffix <= 99:
+        final_name = f"{tl_name}_{suffix}"
+        suffix += 1
+
+    if final_name in existing_names:
+        return f"Error: Could not find a free timeline name for pseudo-subclip based on '{base_name}'"
+
+    # Create the empty timeline for this pseudo-subclip
+    new_timeline = media_pool.CreateEmptyTimeline(final_name)
+    if not new_timeline:
+        return f"Error: Failed to create pseudo-subclip timeline '{final_name}'"
+
+    # Remember current timeline so we can restore it afterward
+    previous_timeline = None
+    try:
+        previous_timeline = current_project.GetCurrentTimeline()
+    except Exception:
+        previous_timeline = None
+
+    # Make the new timeline current so AppendToTimeline targets it
+    try:
+        current_project.SetCurrentTimeline(new_timeline)
+    except Exception as e:
+        logger.error("Failed to set pseudo-subclip timeline '%s' as current: %s", final_name, e)
+        return f"Error: Created timeline '{final_name}' but failed to set it as current: {e}"
+
+    # Apply in/out marks on the source clip and append only that range
+    if not source_clip.SetMarkInOut(start_frame, end_frame):
+        return f"Error: Failed to set in/out points on clip '{clip_name}' for pseudo-subclip"
+
+    try:
+        logger.info(
+            "DEBUG create_pseudo_subclip: appending clip=%s start=%s end=%s to timeline=%s",
+            clip_name,
+            start_frame,
+            end_frame,
+            final_name,
+        )
+
+        append_result = media_pool.AppendToTimeline([source_clip])
+
+        try:
+            source_clip.ClearMarkInOut()
+        except Exception:
+            pass
+
+        if not append_result:
+            return (
+                f"Error: Failed to append trimmed range from '{clip_name}' "
+                f"into pseudo-subclip timeline '{final_name}'"
+            )
+
+        # Optionally normalize start timecode to 00:00:00:00 if API allows
+        try:
+            new_timeline.SetStartTimecode("00:00:00:00")
+        except Exception:
+            # Not critical; ignore if unsupported
+            pass
+
+        return (
+            f"Successfully created pseudo-subclip timeline '{final_name}' "
+            f"from clip '{clip_name}' frames {start_frame} to {end_frame}"
+        )
+
+    except Exception as e:
+        try:
+            source_clip.ClearMarkInOut()
+        except Exception:
+            pass
+        return f"Error creating pseudo-subclip timeline: {e}"
+
+    finally:
+        # Restore previous current timeline if possible
+        if previous_timeline is not None:
+            try:
+                current_project.SetCurrentTimeline(previous_timeline)
+            except Exception:
+                pass
+
+
+def create_pseudo_subclip_compound(resolve, timeline_name: str,
+                                   compound_name: str = None,
+                                   bin_name: str = None) -> str:
+    """Create a compound clip from a pseudo-subclip timeline and place it in a bin.
+
+    Steps:
+      - Locate the timeline by name (e.g. "RuckusPart1_Clip1_TL")
+      - Collect its items (video + audio) and call CreateCompoundClip
+      - Move the resulting media pool clip into the requested bin
+
+    Args:
+        resolve: The DaVinci Resolve instance
+        timeline_name: Name of the pseudo-subclip timeline
+        compound_name: Optional explicit name for the compound clip
+        bin_name: Name of target bin (required for deterministic organization)
+
+    Returns:
+        String indicating success or failure.
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+
+    if not timeline_name:
+        return "Error: Timeline name cannot be empty"
+
+    if not bin_name:
+        return "Error: Bin name is required for pseudo-subclip compound creation"
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+
+    # Find the timeline by name
+    target_timeline = None
+    try:
+        tl_count = current_project.GetTimelineCount()
+        for i in range(1, tl_count + 1):
+            tl = current_project.GetTimelineByIndex(i)
+            if tl and tl.GetName() == timeline_name:
+                target_timeline = tl
+                break
+    except Exception as e:
+        return f"Error: Failed to enumerate timelines: {e}"
+
+    if not target_timeline:
+        return f"Error: Timeline '{timeline_name}' not found"
+
+    # Collect items from all video and audio tracks
+    items = []
+    try:
+        v_count = target_timeline.GetTrackCount("video") or 0
+        a_count = target_timeline.GetTrackCount("audio") or 0
+
+        for track_index in range(1, v_count + 1):
+            track_items = target_timeline.GetItemListInTrack("video", track_index) or []
+            for it in track_items:
+                if it:
+                    items.append(it)
+
+        for track_index in range(1, a_count + 1):
+            track_items = target_timeline.GetItemListInTrack("audio", track_index) or []
+            for it in track_items:
+                if it:
+                    items.append(it)
+    except Exception as e:
+        return f"Error: Failed to collect timeline items for compound: {e}"
+
+    if not items:
+        return f"Error: Timeline '{timeline_name}' has no items to compound"
+
+    # Create the compound clip. Some Resolve versions accept (items) only; some may
+    # accept an optional name argument. Try the simple form first.
+    new_clip = None
+    try:
+        new_clip = target_timeline.CreateCompoundClip(items)
+    except TypeError:
+        # Fallback: try including a name if provided
+        if compound_name:
+            try:
+                new_clip = target_timeline.CreateCompoundClip(items, compound_name)
+            except Exception as e:
+                return f"Error: Failed to create compound clip from timeline '{timeline_name}': {e}"
+        else:
+            return (
+                "Error: Failed to create compound clip; the Resolve API variant in use "
+                "requires a different CreateCompoundClip signature."
+            )
+    except Exception as e:
+        return f"Error: Failed to create compound clip from timeline '{timeline_name}': {e}"
+
+    # On some Resolve builds CreateCompoundClip() appears to succeed but returns
+    # None instead of a clip handle, while still dropping a new compound clip
+    # into the active Media Pool bin. In that case we treat this as a soft
+    # success and ask the user to locate/rename/move the clip manually.
+    if not new_clip:
+        logger.warning(
+            "CreateCompoundClip returned %r for timeline '%s'; assuming success "
+            "based on Resolve UI behaviour (compound likely created in active bin)",
+            new_clip,
+            timeline_name,
+        )
+        return (
+            "CreateCompoundClip did not return a clip handle, but DaVinci Resolve "
+            f"usually still creates a compound clip from timeline '{timeline_name}' in "
+            "the active Media Pool bin. Check that bin (for example, '" + bin_name + "') "
+            "for a new compound clip and rename/move it manually if needed."
+        )
+
+    # Compute a target name for the compound media
+    if not compound_name:
+        compound_name = f"{timeline_name}_CC"
+
+    try:
+        new_clip.SetName(compound_name)
+    except Exception:
+        # Non-fatal if we can't rename
+        pass
+
+    # Resolve target bin folder object using existing move_media_to_bin patterns
+    root_folder = media_pool.GetRootFolder()
+    if not root_folder:
+        return "Error: Failed to get Root Folder when moving compound clip"
+
+    target_folder = None
+    if bin_name.lower() == "master" or bin_name == root_folder.GetName():
+        target_folder = root_folder
+    else:
+        folders = root_folder.GetSubFolderList() or []
+        for folder in folders:
+            if folder and folder.GetName() == bin_name:
+                target_folder = folder
+                break
+
+    if not target_folder:
+        return f"Error: Bin '{bin_name}' not found in Media Pool for compound placement"
+
+    try:
+        moved = media_pool.MoveClips([new_clip], target_folder)
+    except Exception as e:
+        return f"Error: Created compound clip but failed to move it to bin '{bin_name}': {e}"
+
+    if not moved:
+        return (
+            f"Error: Created compound clip '{compound_name}' but MoveClips returned false "
+            f"when moving it to bin '{bin_name}'"
+        )
+
+    return (
+        f"Successfully created compound clip '{compound_name}' from timeline "
+        f"'{timeline_name}' and moved it to bin '{bin_name}'"
+    )
+
+
+def normalize_latest_compound_clip(
+    resolve,
+    source_bin_name: str,
+    new_name: str,
+    target_bin_name: str = None,
+) -> str:
+    """Rename (and optionally move) the most recently created compound clip in a bin.
+
+    This is designed as a post-processing helper for environments where
+    ``Timeline.CreateCompoundClip`` appears to succeed but does not return a
+    usable clip handle. In that case Resolve still drops a compound clip into
+    the active Media Pool bin, but our higher-level APIs cannot rename or move
+    it directly.
+
+    Strategy:
+      - Locate the source bin in the Media Pool
+      - Filter its clips to those whose type contains "compound"
+      - Take the last clip in that list as "latest" (Resolve typically appends
+        new items at the end of the bin)
+      - Rename it to ``new_name`` and, if ``target_bin_name`` is provided and
+        differs from ``source_bin_name``, move it to that bin.
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+
+    if not source_bin_name:
+        return "Error: Source bin name cannot be empty"
+
+    if not new_name:
+        return "Error: New name for compound clip cannot be empty"
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+
+    root_folder = media_pool.GetRootFolder()
+    if not root_folder:
+        return "Error: Failed to get Root Folder"
+
+    # Resolve the source folder
+    source_folder = None
+    if source_bin_name.lower() == "master" or source_bin_name == root_folder.GetName():
+        source_folder = root_folder
+    else:
+        folders = root_folder.GetSubFolderList() or []
+        for folder in folders:
+            if folder and folder.GetName() == source_bin_name:
+                source_folder = folder
+                break
+
+    if not source_folder:
+        return f"Error: Source bin '{source_bin_name}' not found in Media Pool"
+
+    clips = source_folder.GetClipList() or []
+    if not clips:
+        return f"Error: Bin '{source_bin_name}' has no clips to inspect for compounds"
+
+    # Filter to compound clips only
+    compound_clips = []
+    for clip in clips:
+        if not clip:
+            continue
+        try:
+            props = clip.GetClipProperty() or {}
+        except Exception:
+            props = {}
+        clip_type = str(props.get("Type", "") or "").lower()
+        if "compound" in clip_type:
+            compound_clips.append(clip)
+
+    if not compound_clips:
+        return f"Error: Bin '{source_bin_name}' contains no compound clips"
+
+    latest_clip = compound_clips[-1]
+    try:
+        old_name = latest_clip.GetName()
+    except Exception:
+        old_name = "<unknown>"
+
+    try:
+        latest_clip.SetName(new_name)
+    except Exception as e:
+        return (
+            f"Error: Failed to rename latest compound clip in bin '{source_bin_name}' "
+            f"from '{old_name}' to '{new_name}': {e}"
+        )
+
+    # Optionally move to a different bin after renaming
+    if target_bin_name and target_bin_name != source_bin_name:
+        target_folder = None
+        if target_bin_name.lower() == "master" or target_bin_name == root_folder.GetName():
+            target_folder = root_folder
+        else:
+            folders = root_folder.GetSubFolderList() or []
+            for folder in folders:
+                if folder and folder.GetName() == target_bin_name:
+                    target_folder = folder
+                    break
+
+        if not target_folder:
+            return (
+                f"Warning: Renamed latest compound clip in bin '{source_bin_name}' "
+                f"from '{old_name}' to '{new_name}', but target bin "
+                f"'{target_bin_name}' was not found for moving."
+            )
+
+        try:
+            moved = media_pool.MoveClips([latest_clip], target_folder)
+        except Exception as e:
+            return (
+                f"Warning: Renamed latest compound clip in bin '{source_bin_name}' "
+                f"from '{old_name}' to '{new_name}', but failed to move it to bin "
+                f"'{target_bin_name}': {e}"
+            )
+
+        if not moved:
+            return (
+                f"Warning: Renamed latest compound clip in bin '{source_bin_name}' "
+                f"from '{old_name}' to '{new_name}', but MoveClips returned false "
+                f"when moving it to bin '{target_bin_name}'."
+            )
+
+        return (
+            f"Successfully renamed latest compound clip in bin '{source_bin_name}' "
+            f"from '{old_name}' to '{new_name}' and moved it to bin '{target_bin_name}'."
+        )
+
+    return (
+        f"Successfully renamed latest compound clip in bin '{source_bin_name}' "
+        f"from '{old_name}' to '{new_name}'."
+    )

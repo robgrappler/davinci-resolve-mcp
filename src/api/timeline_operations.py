@@ -568,4 +568,190 @@ def get_timeline_tracks(resolve, timeline_name: str = None) -> Dict[str, Any]:
         return tracks
     
     except Exception as e:
-        return {"error": f"Error getting timeline tracks: {str(e)}"} 
+        return {"error": f"Error getting timeline tracks: {str(e)}"}
+
+def _frame_to_timecode(frame: int, fps: float) -> str:
+    """Convert absolute frame number to SMPTE timecode string (HH:MM:SS:FF).
+    
+    Note: Currently assumes Non-Drop Frame (NDF).
+    """
+    total_seconds = frame / fps
+    
+    h = int(total_seconds // 3600)
+    m = int((total_seconds % 3600) // 60)
+    s = int(total_seconds % 60)
+    f = int(frame % fps)
+    
+    return f"{h:02d}:{m:02d}:{s:02d}:{f:02d}"
+
+def set_current_frame(resolve, frame: int) -> str:
+    """Set the current playhead position to a specific frame.
+    
+    Args:
+        resolve: The DaVinci Resolve instance
+        frame: The absolute frame number to move to
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return "Error: No timeline currently active"
+    
+    try:
+        # Get frame rate
+        fps_str = current_timeline.GetSetting("timelineFrameRate")
+        # Handle "24.000" vs "24", etc.
+        if not fps_str:
+             # Fallback
+             fps_str = "24"
+             
+        try:
+            fps = float(fps_str)
+        except ValueError:
+            fps = 24.0
+            
+        # Convert frame to timecode
+        timecode = _frame_to_timecode(frame, fps)
+        
+        # Set current timecode
+        success = current_timeline.SetCurrentTimecode(timecode)
+        
+        if success:
+            return f"Successfully moved playhead to frame {frame} ({timecode})"
+        else:
+            return f"Failed to set current timecode to {timecode} (Frame {frame})"
+            
+    except Exception as e:
+        return f"Error setting current frame: {str(e)}"
+
+def razor_timeline(resolve, frame: int = None) -> str:
+    """Cut all clips at the current playhead position or a specified frame.
+    
+    Args:
+        resolve: The DaVinci Resolve instance
+        frame: Optional absolute frame number to cut at
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+        
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return "Error: No timeline currently active"
+        
+    try:
+        # If frame is specified, move there first
+        if frame is not None:
+            # We reuse our set_current_frame logic by calling it directly 
+            # or duplicating minimal logic. Direct call is cleaner.
+            result = set_current_frame(resolve, frame)
+            if result.startswith("Error") or result.startswith("Failed"):
+                return f"Aborted Razor: {result}"
+        
+        # Perform the cut
+        success = current_timeline.Razor()
+        
+        if success:
+            return "Successfully razored timeline at current position"
+        else:
+            return "Failed to razor timeline (Razor command returned False)"
+            
+    except Exception as e:
+        return f"Error executing Razor: {str(e)}"
+
+def get_timeline_items(resolve, track_type: str = "video", track_index: int = 1) -> Any:
+    """Get list of items in a specific track with their IDs and time ranges.
+    
+    Args:
+        resolve: The DaVinci Resolve instance
+        track_type: 'video', 'audio', or 'subtitle'
+        track_index: The index of the track (1-based)
+        
+    Returns:
+        List of item dictionaries or error string
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+        
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+    
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+    
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return "Error: No timeline currently active"
+    
+    try:
+        clips = current_timeline.GetItemListInTrack(track_type, track_index)
+        if not clips:
+            return []
+            
+        items = []
+        for clip in clips:
+            if not clip:
+                continue
+                
+            # Safely extract properties
+            c_name = "Unknown"
+            try: c_name = clip.GetName()
+            except: pass
+            
+            c_start = 0
+            try: c_start = clip.GetStart()
+            except: pass
+            
+            c_end = 0
+            try: c_end = clip.GetEnd()
+            except: pass
+            
+            c_dur = 0
+            try: c_dur = clip.GetDuration()
+            except: pass
+            
+            c_id = ""
+            try: 
+                if hasattr(clip, "GetUniqueId"):
+                    c_id = str(clip.GetUniqueId())
+            except: pass
+            
+            c_type = "Unknown"
+            try: 
+                if hasattr(clip, "GetType"):
+                    c_type = clip.GetType()
+            except: pass
+            
+            item = {
+                "id": c_id,
+                "name": c_name,
+                "start": c_start,
+                "end": c_end,
+                "duration": c_dur,
+                "type": c_type
+            }
+            items.append(item)
+            
+        return items
+        
+    except Exception as e:
+        import traceback
+        return f"Error getting timeline items: {str(e)} \nTraceback: {traceback.format_exc()}" 
