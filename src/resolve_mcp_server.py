@@ -85,6 +85,8 @@ from src.utils.project_properties import (
     get_project_info
 )
 
+import src.api.media_operations as media_ops
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -563,7 +565,7 @@ def list_timelines() -> List[str]:
     logger.info(f"Returning {len(timelines)} timelines: {', '.join(timelines)}")
     return timelines
 
-@mcp.resource("resolve://current-timeline")
+@mcp.tool()
 def get_current_timeline() -> Dict[str, Any]:
     """Get information about the current timeline."""
     if resolve is None:
@@ -601,7 +603,7 @@ def get_timeline_tracks(timeline_name: str = None) -> Dict[str, Any]:
     Args:
         timeline_name: Optional name of the timeline to get tracks from. Uses current timeline if None.
     """
-    from api.timeline_operations import get_timeline_tracks as get_tracks_func
+    from src.api.timeline_operations import get_timeline_tracks as get_tracks_func
     return get_tracks_func(resolve, timeline_name)
 
 @mcp.tool()
@@ -654,7 +656,7 @@ def create_empty_timeline(name: str,
         video_tracks: Optional number of video tracks (Default is project setting)
         audio_tracks: Optional number of audio tracks (Default is project setting)
     """
-    from api.timeline_operations import create_empty_timeline as create_empty_timeline_func
+    from src.api.timeline_operations import create_empty_timeline as create_empty_timeline_func
     return create_empty_timeline_func(resolve, name, frame_rate, resolution_width, 
                                     resolution_height, start_timecode, 
                                     video_tracks, audio_tracks)
@@ -681,7 +683,7 @@ def set_current_frame(frame: int) -> str:
     if not current_timeline:
         return "Error: No timeline currently active"
     
-    from api.timeline_operations import set_current_frame as set_current_frame_func
+    from src.api.timeline_operations import set_current_frame as set_current_frame_func
     return set_current_frame_func(resolve, frame)
 
 @mcp.tool()
@@ -691,7 +693,7 @@ def razor_timeline(frame: int = None) -> str:
     Args:
         frame: The frame number to make the cut at (defaults to current playhead position if None)
     """
-    from api.timeline_operations import razor_timeline as razor_timeline_func
+    from src.api.timeline_operations import razor_timeline as razor_timeline_func
     return razor_timeline_func(resolve, frame)
 
 @mcp.tool()
@@ -702,7 +704,7 @@ def get_timeline_items(track_type: str = "video", track_index: int = 1) -> List[
         track_type: 'video', 'audio', or 'subtitle'
         track_index: The index of the track (1-based)
     """
-    from api.timeline_operations import get_timeline_items as get_timeline_items_func
+    from src.api.timeline_operations import get_timeline_items as get_timeline_items_func
     return get_timeline_items_func(resolve, track_type, track_index)
 
 @mcp.tool()
@@ -712,7 +714,7 @@ def delete_timeline(name: str) -> str:
     Args:
         name: The name of the timeline to delete
     """
-    from api.timeline_operations import delete_timeline as delete_timeline_func
+    from src.api.timeline_operations import delete_timeline as delete_timeline_func
     return delete_timeline_func(resolve, name)
 
 @mcp.tool()
@@ -758,7 +760,7 @@ def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> str:
         color: The marker color (Blue, Cyan, Green, Yellow, Red, Pink, Purple, Fuchsia, Rose, Lavender, Sky, Mint, Lemon, Sand, Cocoa, Cream)
         note: Text note to add to the marker
     """
-    from api.timeline_operations import add_marker as add_marker_func
+    from src.api.timeline_operations import add_marker as add_marker_func
     return add_marker_func(resolve, frame, color, note)
 
 @mcp.tool()
@@ -771,7 +773,7 @@ def add_fusion_effect(timeline_item_id: str, effect_name: str, settings: Dict[st
         settings: Dictionary of settings to apply to the tool (e.g. {"Gain": 2.0})
     """
     try:
-        from api.fusion_operations import add_fusion_effect as add_fusion_effect_func
+        from src.api.fusion_operations import add_fusion_effect as add_fusion_effect_func
         logger.info(f"Loaded add_fusion_effect_func: {type(add_fusion_effect_func)}")
         return add_fusion_effect_func(resolve, timeline_item_id, effect_name, settings)
     except Exception as e:
@@ -789,7 +791,7 @@ def add_fusion_generator(timeline_item_id: str, generator_name: str, settings: D
         settings: Dictionary of settings to apply to the tool
     """
     try:
-        from api.fusion_operations import add_fusion_generator as add_gen_func
+        from src.api.fusion_operations import add_fusion_generator as add_gen_func
         return add_gen_func(resolve, timeline_item_id, generator_name, settings)
     except Exception as e:
         import traceback
@@ -844,7 +846,7 @@ def import_media(file_path: str) -> str:
     Args:
         file_path: The path to the media file to import
     """
-    from api.media_operations import import_media as import_media_func
+    from src.api.media_operations import import_media as import_media_func
     return import_media_func(resolve, file_path)
 
 @mcp.tool()
@@ -854,7 +856,7 @@ def delete_media(clip_name: str) -> str:
     Args:
         clip_name: Name of the clip to delete
     """
-    from api.media_operations import delete_media as delete_media_func
+    from src.api.media_operations import delete_media as delete_media_func
     return delete_media_func(resolve, clip_name)
 
 @mcp.tool()
@@ -865,7 +867,7 @@ def move_media_to_bin(clip_name: str, bin_name: str) -> str:
         clip_name: Name of the clip to move
         bin_name: Name of the target bin
     """
-    from api.media_operations import move_media_to_bin as move_media_func
+    from src.api.media_operations import move_media_to_bin as move_media_func
     return move_media_func(resolve, clip_name, bin_name)
 
 @mcp.tool()
@@ -879,7 +881,7 @@ def auto_sync_audio(clip_names: List[str], sync_method: str = "waveform",
         append_mode: Whether to append the audio or replace it
         target_bin: Optional bin to move synchronized clips to
     """
-    from api.media_operations import auto_sync_audio as auto_sync_audio_func
+    from src.api.media_operations import auto_sync_audio as auto_sync_audio_func
     return auto_sync_audio_func(resolve, clip_names, sync_method, append_mode, target_bin)
 
 @mcp.tool()
@@ -889,7 +891,7 @@ def unlink_clips(clip_names: List[str]) -> str:
     Args:
         clip_names: List of clip names to unlink
     """
-    from api.media_operations import unlink_clips as unlink_clips_func
+    from src.api.media_operations import unlink_clips as unlink_clips_func
     return unlink_clips_func(resolve, clip_names)
 
 @mcp.tool()
@@ -903,7 +905,7 @@ def relink_clips(clip_names: List[str], media_paths: List[str] = None,
         folder_path: Optional folder path to search for media files
         recursive: Whether to search the folder path recursively
     """
-    from api.media_operations import relink_clips as relink_clips_func
+    from src.api.media_operations import relink_clips as relink_clips_func
     return relink_clips_func(resolve, clip_names, media_paths, folder_path, recursive)
 
 @mcp.tool()
@@ -918,8 +920,8 @@ def create_sub_clip(clip_name: str, start_frame: int, end_frame: int,
         sub_clip_name: Optional name for the subclip (defaults to original name with '_subclip')
         bin_name: Optional bin to place the subclip in
     """
-    from api.media_operations import create_sub_clip as create_sub_clip_func
-    from api.media_operations import create_pseudo_subclip as create_pseudo_subclip_func
+    from src.api.media_operations import create_sub_clip as create_sub_clip_func
+    from src.api.media_operations import create_pseudo_subclip as create_pseudo_subclip_func
     
     # Try standard subclip creation first
     result = create_sub_clip_func(resolve, clip_name, start_frame, end_frame, sub_clip_name, bin_name)
@@ -939,13 +941,13 @@ def create_bin(name: str) -> str:
     Args:
         name: The name for the new bin
     """
-    from api.media_operations import create_bin as create_bin_func
+    from src.api.media_operations import create_bin as create_bin_func
     return create_bin_func(resolve, name)
 
 @mcp.resource("resolve://media-pool-bins")
 def list_media_pool_bins() -> List[Dict[str, Any]]:
     """List all bins/folders in the media pool."""
-    from api.media_operations import list_bins as list_bins_func
+    from src.api.media_operations import list_bins as list_bins_func
     return list_bins_func(resolve)
 
 @mcp.resource("resolve://media-pool-bin/{bin_name}")
@@ -955,7 +957,7 @@ def get_media_pool_bin_contents(bin_name: str) -> List[Dict[str, Any]]:
     Args:
         bin_name: The name of the bin to get contents from. Use 'Master' for the root folder.
     """
-    from api.media_operations import get_bin_contents as get_bin_contents_func
+    from src.api.media_operations import get_bin_contents as get_bin_contents_func
     return get_bin_contents_func(resolve, bin_name)
 
 @mcp.resource("resolve://timeline-clips")
@@ -1026,15 +1028,25 @@ def list_timelines_tool() -> List[str]:
     return list_timelines()
 
 @mcp.tool()
-def add_clip_to_timeline(clip_name: str, timeline_name: str = None) -> str:
+def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> str:
+    """Create a new timeline containing the specified list of clips.
+    
+    Args:
+        timeline_name: Name for the new timeline
+        clip_names: List of clip names to include in order
+    """
+    return media_ops.create_timeline_from_clips(resolve, timeline_name, clip_names)
+
+@mcp.tool()
+def add_clip_to_timeline(clip_name: str, timeline_name: str = None, start_frame: int = None, end_frame: int = None) -> str:
     """Add a media pool clip to the timeline.
     
     Args:
         clip_name: Name of the clip in the media pool
         timeline_name: Optional timeline to target (uses current if not specified)
     """
-    from api.media_operations import add_clip_to_timeline as add_clip_func
-    return add_clip_func(resolve, clip_name, timeline_name)
+    from src.api.media_operations import add_clip_to_timeline as add_clip_func
+    return add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
 
 # ------------------
 # Color Page Operations
@@ -1043,7 +1055,7 @@ def add_clip_to_timeline(clip_name: str, timeline_name: str = None) -> str:
 @mcp.resource("resolve://color/current-node")
 def get_current_color_node() -> Dict[str, Any]:
     """Get information about the current node in the color page."""
-    from api.color_operations import get_current_node as get_node_func
+    from src.api.color_operations import get_current_node as get_node_func
     return get_node_func(resolve)
 
 @mcp.resource("resolve://color/wheels/{node_index}")
@@ -1053,7 +1065,7 @@ def get_color_wheel_params(node_index: int = None) -> Dict[str, Any]:
     Args:
         node_index: Index of the node to get color wheels from (uses current node if None)
     """
-    from api.color_operations import get_color_wheels as get_wheels_func
+    from src.api.color_operations import get_color_wheels as get_wheels_func
     return get_wheels_func(resolve, node_index)
 
 @mcp.tool()
@@ -1064,7 +1076,7 @@ def apply_lut(lut_path: str, node_index: int = None) -> str:
         lut_path: Path to the LUT file to apply
         node_index: Index of the node to apply the LUT to (uses current node if None)
     """
-    from api.color_operations import apply_lut as apply_lut_func
+    from src.api.color_operations import apply_lut as apply_lut_func
     return apply_lut_func(resolve, lut_path, node_index)
 
 @mcp.tool()
@@ -1077,7 +1089,7 @@ def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int 
         value: The value to set (typically between -1.0 and 1.0)
         node_index: Index of the node to set parameter for (uses current node if None)
     """
-    from api.color_operations import set_color_wheel_param as set_param_func
+    from src.api.color_operations import set_color_wheel_param as set_param_func
     return set_param_func(resolve, wheel, param, value, node_index)
 
 @mcp.tool()
@@ -1088,7 +1100,7 @@ def add_node(node_type: str = "serial", label: str = None) -> str:
         node_type: Type of node to add. Options: 'serial', 'parallel', 'layer'
         label: Optional label/name for the new node
     """
-    from api.color_operations import add_node as add_node_func
+    from src.api.color_operations import add_node as add_node_func
     return add_node_func(resolve, node_type, label)
 
 @mcp.tool()
@@ -1100,7 +1112,7 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
         target_clip_name: Name of the target clip to apply grade to (uses current clip if None)
         mode: What to copy - 'full' (entire grade), 'current_node', or 'all_nodes'
     """
-    from api.color_operations import copy_grade as copy_grade_func
+    from src.api.color_operations import copy_grade as copy_grade_func
     return copy_grade_func(resolve, source_clip_name, target_clip_name, mode)
 
 # ------------------
@@ -1110,7 +1122,7 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
 @mcp.resource("resolve://delivery/render-presets")
 def get_render_presets() -> List[Dict[str, Any]]:
     """Get all available render presets in the current project."""
-    from api.delivery_operations import get_render_presets as get_presets_func
+    from src.api.delivery_operations import get_render_presets as get_presets_func
     return get_presets_func(resolve)
 
 @mcp.tool()
@@ -1120,7 +1132,7 @@ def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_
     This is the original tool, kept for backward compatibility. It
     returns the raw dict from :mod:`api.delivery_operations`.
     """
-    from api.delivery_operations import add_to_render_queue as add_queue_func
+    from src.api.delivery_operations import add_to_render_queue as add_queue_func
     return add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
 
 
@@ -1136,7 +1148,7 @@ def add_to_render_queue_json(
     Returns a stable ``{"ok": bool, "data": ..., "error": ...}`` object
     regardless of how the underlying helper formats its output.
     """
-    from api.delivery_operations import add_to_render_queue as add_queue_func
+    from src.api.delivery_operations import add_to_render_queue as add_queue_func
 
     logger.info(
         "add_to_render_queue_json: preset=%s timeline=%s in_out=%s",
@@ -1151,19 +1163,19 @@ def add_to_render_queue_json(
 @mcp.tool()
 def start_render() -> Dict[str, Any]:
     """Start rendering the jobs in the render queue."""
-    from api.delivery_operations import start_render as start_render_func
+    from src.api.delivery_operations import start_render as start_render_func
     return start_render_func(resolve)
 
 @mcp.resource("resolve://delivery/render-queue/status")
 def get_render_queue_status() -> Dict[str, Any]:
     """Get the status of jobs in the render queue."""
-    from api.delivery_operations import get_render_queue_status as get_status_func
+    from src.api.delivery_operations import get_render_queue_status as get_status_func
     return get_status_func(resolve)
 
 @mcp.tool()
 def clear_render_queue() -> Dict[str, Any]:
     """Clear all jobs from the render queue."""
-    from api.delivery_operations import clear_render_queue as clear_queue_func
+    from src.api.delivery_operations import clear_render_queue as clear_queue_func
     return clear_queue_func(resolve)
 
 @mcp.tool()
@@ -2192,137 +2204,93 @@ def get_timeline_items() -> List[Dict[str, Any]]:
 def set_timeline_item_transform(timeline_item_id: str, 
                                property_name: str, 
                                property_value: float) -> str:
-    """Set a transform property for a timeline item.
-    
-    Args:
-        timeline_item_id: The ID of the timeline item to modify
-        property_name: The name of the property to set. Options include:
-                      'Pan', 'Tilt', 'ZoomX', 'ZoomY', 'Rotation', 'AnchorPointX', 
-                      'AnchorPointY', 'Pitch', 'Yaw'
-        property_value: The value to set for the property
-    """
-    if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
-    
-    project_manager = resolve.GetProjectManager()
-    if not project_manager:
-        return "Error: Failed to get Project Manager"
-    
-    current_project = project_manager.GetCurrentProject()
-    if not current_project:
-        return "Error: No project currently open"
-    
-    current_timeline = current_project.GetCurrentTimeline()
-    if not current_timeline:
-        return "Error: No timeline currently active"
-    
-    # Validate property name
-    valid_properties = [
-        'Pan', 'Tilt', 'ZoomX', 'ZoomY', 'Rotation', 
-        'AnchorPointX', 'AnchorPointY', 'Pitch', 'Yaw'
-    ]
-    
-    if property_name not in valid_properties:
-        return f"Error: Invalid property name. Must be one of: {', '.join(valid_properties)}"
-    
+    """Set a transform property for a timeline item (DEBUG VERSION)."""
+    import traceback
     try:
-        # Find the timeline item by ID
-        video_track_count = current_timeline.GetTrackCount("video")
+        if resolve is None: return "Error: Not connected to DaVinci Resolve"
+        pm = resolve.GetProjectManager()
+        if not pm: return "Error: No PM"
+        proj = pm.GetCurrentProject()
+        if not proj: return "Error: No Project"
+        timeline = proj.GetCurrentTimeline()
+        if not timeline: return "Error: No Timeline"
         
-        timeline_item = None
-        
-        # Search video tracks
-        for track_index in range(1, video_track_count + 1):
-            items = current_timeline.GetItemListInTrack("video", track_index)
-            if items:
-                for item in items:
-                    if str(item.GetUniqueId()) == timeline_item_id:
-                        timeline_item = item
-                        break
-            if timeline_item:
-                break
-        
-        if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
-        
-        if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
-        
-        # Set the property
-        result = timeline_item.SetProperty(property_name, property_value)
-        if result:
-            return f"Successfully set {property_name} to {property_value} for timeline item '{timeline_item.GetName()}'"
-        else:
-            return f"Failed to set {property_name} for timeline item '{timeline_item.GetName()}'"
-    except Exception as e:
-        return f"Error setting timeline item property: {str(e)}"
+        valid_properties = ['Pan', 'Tilt', 'ZoomX', 'ZoomY', 'Rotation', 'AnchorPointX', 'AnchorPointY', 'Pitch', 'Yaw']
+        if property_name not in valid_properties: return f"Error: Invalid property {property_name}"
 
+        # Find item
+        item = None
+        track_count = timeline.GetTrackCount("video")
+        for i in range(1, track_count + 1):
+             clips = timeline.GetItemListInTrack("video", i)
+             if clips:
+                 for c in clips:
+                     if str(c.GetUniqueId()) == timeline_item_id:
+                         item = c
+                         break
+             if item: break
+        
+        if not item: return f"Error: Item {timeline_item_id} not found"
+        
+        # Call SetProperty
+        func = getattr(item, "SetProperty", None)
+        if not callable(func): return f"Error: SetProperty is {type(func)}"
+        
+        res = func(property_name, property_value)
+        if res:
+            return f"Success: Set {property_name} to {property_value}"
+        else:
+            return f"Failed: SetProperty returned False"
+
+    except Exception as e:
+        return f"CRASH: {e} \nTRACE: {traceback.format_exc()}"
 @mcp.tool()
 def set_timeline_item_crop(timeline_item_id: str, 
                           crop_type: str, 
                           crop_value: float) -> str:
-    """Set a crop property for a timeline item.
-    
-    Args:
-        timeline_item_id: The ID of the timeline item to modify
-        crop_type: The type of crop to set. Options: 'Left', 'Right', 'Top', 'Bottom'
-        crop_value: The value to set for the crop (typically 0.0 to 1.0)
-    """
-    if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
-    
-    project_manager = resolve.GetProjectManager()
-    if not project_manager:
-        return "Error: Failed to get Project Manager"
-    
-    current_project = project_manager.GetCurrentProject()
-    if not current_project:
-        return "Error: No project currently open"
-    
-    current_timeline = current_project.GetCurrentTimeline()
-    if not current_timeline:
-        return "Error: No timeline currently active"
-    
-    # Validate crop type
-    valid_crop_types = ['Left', 'Right', 'Top', 'Bottom']
-    
-    if crop_type not in valid_crop_types:
-        return f"Error: Invalid crop type. Must be one of: {', '.join(valid_crop_types)}"
-    
-    property_name = f"Crop{crop_type}"
-    
+    """Set a crop property for a timeline item (DEBUG VERSION)."""
+    import traceback
     try:
-        # Find the timeline item by ID
-        video_track_count = current_timeline.GetTrackCount("video")
+        if resolve is None: return "Error: Not connected to DaVinci Resolve"
+        pm = resolve.GetProjectManager()
+        if not pm: return "Error: No PM"
+        proj = pm.GetCurrentProject()
+        if not proj: return "Error: No Project"
+        timeline = proj.GetCurrentTimeline()
+        if not timeline: return "Error: No Timeline"
         
-        timeline_item = None
+        valid_crop_types = ['Left', 'Right', 'Top', 'Bottom']
+        if crop_type not in valid_crop_types:
+            return f"Error: Invalid crop type. Must be one of: {', '.join(valid_crop_types)}"
         
-        # Search video tracks
-        for track_index in range(1, video_track_count + 1):
-            items = current_timeline.GetItemListInTrack("video", track_index)
-            if items:
-                for item in items:
-                    if str(item.GetUniqueId()) == timeline_item_id:
-                        timeline_item = item
-                        break
-            if timeline_item:
-                break
-        
-        if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
-        
-        if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
-        
-        # Set the property
-        result = timeline_item.SetProperty(property_name, crop_value)
-        if result:
-            return f"Successfully set crop {crop_type.lower()} to {crop_value} for timeline item '{timeline_item.GetName()}'"
-        else:
-            return f"Failed to set crop {crop_type.lower()} for timeline item '{timeline_item.GetName()}'"
-    except Exception as e:
-        return f"Error setting timeline item crop: {str(e)}"
+        property_name = f"Crop{crop_type}"
 
+        # Find item
+        item = None
+        track_count = timeline.GetTrackCount("video")
+        for i in range(1, track_count + 1):
+             clips = timeline.GetItemListInTrack("video", i)
+             if clips:
+                 for c in clips:
+                     if str(c.GetUniqueId()) == timeline_item_id:
+                         item = c
+                         break
+             if item: break
+        
+        if not item: return f"Error: Item {timeline_item_id} not found"
+        
+        # Call SetProperty
+        func = getattr(item, "SetProperty", None)
+        if not callable(func): return f"Error: SetProperty is {type(func)}"
+        
+        res = func(property_name, crop_value)
+        if res:
+            return f"Success: Set {property_name} to {crop_value}"
+        else:
+            return f"Failed: SetProperty returned False"
+
+    except Exception as e:
+        return f"CRASH: {e} \nTRACE: {traceback.format_exc()}"
 @mcp.tool()
 def set_timeline_item_composite(timeline_item_id: str, 
                                composite_mode: str = None, 
@@ -4794,6 +4762,26 @@ def get_project_info_endpoint() -> Dict[str, Any]:
     
     return get_project_info(current_project)
 
+@mcp.tool()
+def list_media_pool_items() -> str:
+    """List all items in the media pool (recursive)."""
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    project_manager = resolve.GetProjectManager()
+    current_project = project_manager.GetCurrentProject()
+    media_pool = current_project.GetMediaPool()
+    
+    # We already have get_all_media_pool_clips helper
+    clips = get_all_media_pool_clips(media_pool)
+    result = []
+    for c in clips:
+        name = c.GetName()
+        file_path = c.GetClipProperty("File Path")
+        result.append(f"Name: {name}, File Path: {file_path}")
+        
+    return "\n".join(result)
+
 # Start the server
 if __name__ == "__main__":
     try:
@@ -4810,3 +4798,39 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
         sys.exit(1) 
+@mcp.tool()
+def execute_python(code: str) -> str:
+    """Execute arbitrary Python code in DaVinci Resolve context.
+    
+    Args:
+        code: The Python code to execute
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+    
+    try:
+        # Create a local scope with resolve object
+        local_scope = {"resolve": resolve}
+        
+        # Get project manager and current project for convenience
+        project_manager = resolve.GetProjectManager()
+        if project_manager:
+            local_scope["project_manager"] = project_manager
+            current_project = project_manager.GetCurrentProject()
+            if current_project:
+                local_scope["project"] = current_project
+                local_scope["media_pool"] = current_project.GetMediaPool()
+                local_scope["timeline"] = current_project.GetCurrentTimeline()
+        
+        # Execute the code
+        exec(code, globals(), local_scope)
+        
+        # Check if 'result' variable was set
+        if "result" in local_scope:
+            return str(local_scope["result"])
+        else:
+            return "Executed successfully (no 'result' variable set)"
+            
+    except Exception as e:
+        import traceback
+        return f"Error executing Python code: {str(e)}\n{traceback.format_exc()}"

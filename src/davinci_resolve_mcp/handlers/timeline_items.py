@@ -271,11 +271,24 @@ def set_timeline_item_transform(timeline_item_id: str,
             return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
         
         # Set the property
-        result = timeline_item.SetProperty(property_name, property_value)
+        # DEBUG: Check if SetProperty exists and is callable
+        func = getattr(timeline_item, "SetProperty", None)
+        if not callable(func):
+             return f"Error: SetProperty is {type(func)} on item {type(timeline_item)} (ID: {timeline_item_id})"
+        
+        try:
+            result = func(property_name, property_value)
+        except Exception as e:
+            return f"Error executing SetProperty: {e} (Type: {type(e)})"
+
         if result:
             return f"Successfully set {property_name} to {property_value} for timeline item '{timeline_item.GetName()}'"
         else:
-            return f"Failed to set {property_name} for timeline item '{timeline_item.GetName()}'"
+            try:
+                name = timeline_item.GetName()
+            except:
+                name = "Unknown"
+            return f"Failed to set {property_name} for timeline item '{name}'" 
     except Exception as e:
         return f"Error setting timeline item property: {str(e)}"
 
@@ -730,6 +743,56 @@ def set_timeline_item_audio(timeline_item_id: str,
             return f"Failed to set some audio properties for timeline item '{timeline_item.GetName()}'"
     except Exception as e:
         return f"Error setting timeline item audio properties: {str(e)}"
+
+
+@tool()
+def set_timeline_item_name(timeline_item_id: str, name: str) -> str:
+    """Set the name of a timeline item.
+    
+    Args:
+        timeline_item_id: The ID of the timeline item
+        name: The new name
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+        
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+        
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+        
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return "Error: No timeline currently active"
+
+    try:
+        # Find item
+        video_track_count = current_timeline.GetTrackCount("video")
+        timeline_item = None
+        
+        for track_index in range(1, video_track_count + 1):
+            items = current_timeline.GetItemListInTrack("video", track_index)
+            if items:
+                for item in items:
+                    if str(item.GetUniqueId()) == timeline_item_id:
+                        timeline_item = item
+                        break
+            if timeline_item: break
+            
+        if not timeline_item:
+            return f"Error: Timeline item {timeline_item_id} not found"
+            
+        if timeline_item.SetName(name):
+            return f"Successfully set name to '{name}'"
+        else:
+            return f"Failed to set name for item {timeline_item_id}"
+            
+    except Exception as e:
+        return f"Error setting name: {str(e)}"
+
 
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
