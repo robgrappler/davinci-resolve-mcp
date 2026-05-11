@@ -11,11 +11,12 @@ import sys
 import logging
 from typing import List, Dict, Any, Optional, Union
 
-# Add src directory to Python path
+# Add project root to sys.path
+# This file is in {project_root}/src/resolve_mcp_server.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.join(current_dir, 'src')
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Import platform utilities
 from src.utils.platform import setup_environment, get_platform, get_resolve_paths
@@ -158,27 +159,75 @@ logger.info(f"Using Resolve library path: {RESOLVE_LIB_PATH}")
 # Create MCP server instance
 mcp = FastMCP("DaVinciResolveMCP")
 
-# Initialize connection to DaVinci Resolve
-try:
-    # Direct import from the Modules directory
-    sys.path.insert(0, RESOLVE_MODULES_PATH)
-    import DaVinciResolveScript as dvr_script
-    resolve = dvr_script.scriptapp("Resolve")
-    if resolve:
-        logger.info(f"Connected to DaVinci Resolve: {resolve.GetProductName()} {resolve.GetVersionString()}")
-    else:
-        logger.error("Failed to get Resolve object. Is DaVinci Resolve running?")
-except ImportError as e:
-    logger.error(f"Failed to import DaVinciResolveScript: {str(e)}")
-    logger.error("Check that DaVinci Resolve is installed and running.")
-    logger.error(f"RESOLVE_SCRIPT_API: {RESOLVE_API_PATH}")
-    logger.error(f"RESOLVE_SCRIPT_LIB: {RESOLVE_LIB_PATH}")
-    logger.error(f"RESOLVE_MODULES_PATH: {RESOLVE_MODULES_PATH}")
-    logger.error(f"sys.path: {sys.path}")
-    resolve = None
-except Exception as e:
-    logger.error(f"Unexpected error initializing Resolve: {str(e)}")
-    resolve = None
+# Global Resolve object proxy / lazy initialization
+_resolve = None
+
+def get_resolve():
+    """Get or initialize the DaVinci Resolve script object."""
+    global _resolve
+    if _resolve is not None:
+        try:
+            # Test if the connection is still alive
+            _resolve.GetProductName()
+            return _resolve
+        except Exception:
+            logger.warning("Existing Resolve connection lost. Attempting to reconnect...")
+            _resolve = None
+
+    try:
+        from src.utils.resolve_connection import initialize_resolve
+        _resolve = initialize_resolve()
+        if _resolve:
+            logger.info(f"Connected to DaVinci Resolve: {_resolve.GetProductName()} {_resolve.GetVersionString()}")
+        else:
+            logger.error("Failed to get Resolve object via initialize_resolve().")
+    except Exception as e:
+        logger.error(f"Unexpected error calling initialize_resolve: {str(e)}")
+    
+    return _resolve
+
+# Keep a legacy 'resolve' reference for existing code mapping
+# But we will modify the tools to call get_resolve()
+resolve = get_resolve()
+
+def _find_timeline_item_by_id(timeline, timeline_item_id: str, track_types=("video", "audio")):
+    """Find a timeline item and report which track type exposed it."""
+    for track_type in track_types:
+        track_count = timeline.GetTrackCount(track_type)
+        for track_index in range(1, track_count + 1):
+            items = timeline.GetItemListInTrack(track_type, track_index)
+            if not items:
+                continue
+            for item in items:
+                if str(item.GetUniqueId()) == timeline_item_id:
+                    return item, track_type
+    return None, None
+
+def _missing_timeline_item_method(item, method_name: str) -> str:
+    return (
+        f"Error: Timeline item '{item.GetName()}' does not expose {method_name}; "
+        "this DaVinci Resolve scripting API build does not support that helper for this item"
+    )
+
+@mcp.tool()
+def debug_environment() -> Dict[str, Any]:
+    """Get debug information about the server environment."""
+    import sys
+    import os
+    import platform
+    
+    res = get_resolve()
+    
+    return {
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "sys_path": sys.path,
+        "os_environ": {k: v for k, v in os.environ.items() if "RESOLVE" in k or "PYTHON" in k},
+        "cwd": os.getcwd(),
+        "resolve_connected": res is not None,
+        "resolve_product": res.GetProductName() if res else None,
+        "resolve_version": res.GetVersionString() if res else None
+    }
 
 # ------------------
 # MCP Tools/Resources
@@ -187,16 +236,18 @@ except Exception as e:
 @mcp.resource("resolve://version")
 def get_resolve_version() -> str:
     """Get DaVinci Resolve version information."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
-    return f"{resolve.GetProductName()} {resolve.GetVersionString()}"
+    return f"{res.GetProductName()} {res.GetVersionString()}"
 
 @mcp.resource("resolve://current-page")
 def get_current_page() -> str:
     """Get the current page open in DaVinci Resolve (Edit, Color, Fusion, etc.)."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
-    return resolve.GetCurrentPage()
+    return res.GetCurrentPage()
 
 @mcp.tool()
 def switch_page(page: str) -> str:
@@ -205,7 +256,8 @@ def switch_page(page: str) -> str:
     Args:
         page: The page to switch to. Options: 'media', 'cut', 'edit', 'fusion', 'color', 'fairlight', 'deliver'
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     valid_pages = ['media', 'cut', 'edit', 'fusion', 'color', 'fairlight', 'deliver']
@@ -214,7 +266,7 @@ def switch_page(page: str) -> str:
     if page not in valid_pages:
         return f"Error: Invalid page name. Must be one of: {', '.join(valid_pages)}"
     
-    result = resolve.OpenPage(page)
+    result = res.OpenPage(page)
     if result:
         return f"Successfully switched to {page} page"
     else:
@@ -227,10 +279,11 @@ def switch_page(page: str) -> str:
 @mcp.resource("resolve://projects")
 def list_projects() -> List[str]:
     """List all available projects in the current database."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return ["Error: Not connected to DaVinci Resolve"]
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return ["Error: Failed to get Project Manager"]
     
@@ -242,10 +295,11 @@ def list_projects() -> List[str]:
 @mcp.resource("resolve://current-project")
 def get_current_project_name() -> str:
     """Get the name of the currently open project."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -258,10 +312,11 @@ def get_current_project_name() -> str:
 @mcp.resource("resolve://project-settings")
 def get_project_settings() -> Dict[str, Any]:
     """Get all project settings from the current project."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return {"error": "Not connected to DaVinci Resolve"}
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return {"error": "Failed to get Project Manager"}
     
@@ -282,10 +337,11 @@ def get_project_setting(setting_name: str) -> Dict[str, Any]:
     Args:
         setting_name: The specific setting to retrieve.
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return {"error": "Not connected to DaVinci Resolve"}
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return {"error": "Failed to get Project Manager"}
     
@@ -308,10 +364,11 @@ def set_project_setting(setting_name: str, setting_value: Any) -> str:
         setting_name: The name of the setting to change
         setting_value: The new value for the setting (can be string, integer, float, or boolean)
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -360,13 +417,14 @@ def open_project(name: str) -> str:
     Args:
         name: The name of the project to open
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     if not name:
         return "Error: Project name cannot be empty"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -388,13 +446,14 @@ def create_project(name: str) -> str:
     Args:
         name: The name for the new project
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     if not name:
         return "Error: Project name cannot be empty"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -415,10 +474,11 @@ def save_project() -> str:
     
     Note that DaVinci Resolve typically auto-saves projects, so this may not be necessary.
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -497,10 +557,11 @@ def close_project() -> str:
     
     This closes the current project without saving. If you need to save, use the save_project function first.
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -532,11 +593,12 @@ def list_timelines() -> List[str]:
     """List all timelines in the current project."""
     logger.info("Received request to list timelines")
     
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         logger.error("Not connected to DaVinci Resolve")
         return ["Error: Not connected to DaVinci Resolve"]
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         logger.error("Failed to get Project Manager")
         return ["Error: Failed to get Project Manager"]
@@ -568,10 +630,11 @@ def list_timelines() -> List[str]:
 @mcp.tool()
 def get_current_timeline() -> Dict[str, Any]:
     """Get information about the current timeline."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return {"error": "Not connected to DaVinci Resolve"}
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return {"error": "Failed to get Project Manager"}
     
@@ -613,13 +676,14 @@ def create_timeline(name: str) -> str:
     Args:
         name: The name for the new timeline
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     if not name:
         return "Error: Timeline name cannot be empty"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -668,10 +732,11 @@ def set_current_frame(frame: int) -> str:
     Args:
         frame: The frame number to move the playhead to
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -724,13 +789,14 @@ def set_current_timeline(name: str) -> str:
     Args:
         name: The name of the timeline to set as current
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     if not name:
         return "Error: Timeline name cannot be empty"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -760,8 +826,9 @@ def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> str:
         color: The marker color (Blue, Cyan, Green, Yellow, Red, Pink, Purple, Fuchsia, Rose, Lavender, Sky, Mint, Lemon, Sand, Cocoa, Cream)
         note: Text note to add to the marker
     """
+    res = get_resolve()
     from src.api.timeline_operations import add_marker as add_marker_func
-    return add_marker_func(resolve, frame, color, note)
+    return add_marker_func(res, frame, color, note)
 
 @mcp.tool()
 def add_fusion_effect(timeline_item_id: str, effect_name: str, settings: Dict[str, Any] = None) -> str:
@@ -775,7 +842,8 @@ def add_fusion_effect(timeline_item_id: str, effect_name: str, settings: Dict[st
     try:
         from src.api.fusion_operations import add_fusion_effect as add_fusion_effect_func
         logger.info(f"Loaded add_fusion_effect_func: {type(add_fusion_effect_func)}")
-        return add_fusion_effect_func(resolve, timeline_item_id, effect_name, settings)
+        res = get_resolve()
+        return add_fusion_effect_func(res, timeline_item_id, effect_name, settings)
     except Exception as e:
         import traceback
         logger.error(f"Error in wrapper: {traceback.format_exc()}")
@@ -792,7 +860,8 @@ def add_fusion_generator(timeline_item_id: str, generator_name: str, settings: D
     """
     try:
         from src.api.fusion_operations import add_fusion_generator as add_gen_func
-        return add_gen_func(resolve, timeline_item_id, generator_name, settings)
+        res = get_resolve()
+        return add_gen_func(res, timeline_item_id, generator_name, settings)
     except Exception as e:
         import traceback
         logger.error(f"Error in wrapper: {traceback.format_exc()}")
@@ -1065,8 +1134,9 @@ def get_color_wheel_params(node_index: int = None) -> Dict[str, Any]:
     Args:
         node_index: Index of the node to get color wheels from (uses current node if None)
     """
+    res = get_resolve()
     from src.api.color_operations import get_color_wheels as get_wheels_func
-    return get_wheels_func(resolve, node_index)
+    return get_wheels_func(res, node_index)
 
 @mcp.tool()
 def apply_lut(lut_path: str, node_index: int = None) -> str:
@@ -1076,8 +1146,9 @@ def apply_lut(lut_path: str, node_index: int = None) -> str:
         lut_path: Path to the LUT file to apply
         node_index: Index of the node to apply the LUT to (uses current node if None)
     """
+    res = get_resolve()
     from src.api.color_operations import apply_lut as apply_lut_func
-    return apply_lut_func(resolve, lut_path, node_index)
+    return apply_lut_func(res, lut_path, node_index)
 
 @mcp.tool()
 def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int = None) -> str:
@@ -1089,8 +1160,9 @@ def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int 
         value: The value to set (typically between -1.0 and 1.0)
         node_index: Index of the node to set parameter for (uses current node if None)
     """
+    res = get_resolve()
     from src.api.color_operations import set_color_wheel_param as set_param_func
-    return set_param_func(resolve, wheel, param, value, node_index)
+    return set_param_func(res, wheel, param, value, node_index)
 
 @mcp.tool()
 def add_node(node_type: str = "serial", label: str = None) -> str:
@@ -1100,8 +1172,9 @@ def add_node(node_type: str = "serial", label: str = None) -> str:
         node_type: Type of node to add. Options: 'serial', 'parallel', 'layer'
         label: Optional label/name for the new node
     """
+    res = get_resolve()
     from src.api.color_operations import add_node as add_node_func
-    return add_node_func(resolve, node_type, label)
+    return add_node_func(res, node_type, label)
 
 @mcp.tool()
 def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode: str = "full") -> str:
@@ -1112,8 +1185,9 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
         target_clip_name: Name of the target clip to apply grade to (uses current clip if None)
         mode: What to copy - 'full' (entire grade), 'current_node', or 'all_nodes'
     """
+    res = get_resolve()
     from src.api.color_operations import copy_grade as copy_grade_func
-    return copy_grade_func(resolve, source_clip_name, target_clip_name, mode)
+    return copy_grade_func(res, source_clip_name, target_clip_name, mode)
 
 # ------------------
 # Delivery Page Operations
@@ -1122,8 +1196,9 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
 @mcp.resource("resolve://delivery/render-presets")
 def get_render_presets() -> List[Dict[str, Any]]:
     """Get all available render presets in the current project."""
+    res = get_resolve()
     from src.api.delivery_operations import get_render_presets as get_presets_func
-    return get_presets_func(resolve)
+    return get_presets_func(res)
 
 @mcp.tool()
 def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_range: bool = False) -> Dict[str, Any]:
@@ -1132,8 +1207,9 @@ def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_
     This is the original tool, kept for backward compatibility. It
     returns the raw dict from :mod:`api.delivery_operations`.
     """
+    res = get_resolve()
     from src.api.delivery_operations import add_to_render_queue as add_queue_func
-    return add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
+    return add_queue_func(res, preset_name, timeline_name, use_in_out_range)
 
 
 # Pipeline‑safe JSON variant with structured envelope
@@ -1148,6 +1224,7 @@ def add_to_render_queue_json(
     Returns a stable ``{"ok": bool, "data": ..., "error": ...}`` object
     regardless of how the underlying helper formats its output.
     """
+    res = get_resolve()
     from src.api.delivery_operations import add_to_render_queue as add_queue_func
 
     logger.info(
@@ -1156,27 +1233,30 @@ def add_to_render_queue_json(
         timeline_name,
         use_in_out_range,
     )
-    raw = add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
+    raw = add_queue_func(res, preset_name, timeline_name, use_in_out_range)
     context = {"preset_name": preset_name, "timeline_name": timeline_name}
     return _normalize_result("add_to_render_queue", raw, context)
 
 @mcp.tool()
 def start_render() -> Dict[str, Any]:
     """Start rendering the jobs in the render queue."""
+    res = get_resolve()
     from src.api.delivery_operations import start_render as start_render_func
-    return start_render_func(resolve)
+    return start_render_func(res)
 
 @mcp.resource("resolve://delivery/render-queue/status")
 def get_render_queue_status() -> Dict[str, Any]:
     """Get the status of jobs in the render queue."""
+    res = get_resolve()
     from src.api.delivery_operations import get_render_queue_status as get_status_func
-    return get_status_func(resolve)
+    return get_status_func(res)
 
 @mcp.tool()
 def clear_render_queue() -> Dict[str, Any]:
     """Clear all jobs from the render queue."""
+    res = get_resolve()
     from src.api.delivery_operations import clear_render_queue as clear_queue_func
-    return clear_queue_func(resolve)
+    return clear_queue_func(res)
 
 @mcp.tool()
 def link_proxy_media(clip_name: str, proxy_file_path: str) -> str:
@@ -1186,10 +1266,11 @@ def link_proxy_media(clip_name: str, proxy_file_path: str) -> str:
         clip_name: Name of the clip to link proxy to
         proxy_file_path: Path to the proxy media file
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return "Error: Failed to get Project Manager"
     
@@ -2060,18 +2141,23 @@ def get_timeline_item_properties(timeline_item_id: str) -> Dict[str, Any]:
         if not timeline_item:
             return {"error": f"Timeline item with ID '{timeline_item_id}' not found"}
         
+        track_type = "audio" if any(
+            str(item.GetUniqueId()) == timeline_item_id
+            for item in current_timeline.GetItemListInTrack("audio", 1) or []
+        ) else "video"
+        
         # Get basic properties
         properties = {
             "id": timeline_item_id,
             "name": timeline_item.GetName(),
-            "type": timeline_item.GetType(),
+            "type": track_type,
             "start_frame": timeline_item.GetStart(),
             "end_frame": timeline_item.GetEnd(),
             "duration": timeline_item.GetDuration()
         }
         
         # Get additional properties if it's a video item
-        if timeline_item.GetType() == "Video":
+        if track_type == "video":
             # Transform properties
             properties["transform"] = {
                 "position": {
@@ -2124,7 +2210,7 @@ def get_timeline_item_properties(timeline_item_id: str) -> Dict[str, Any]:
             }
         
         # Audio-specific properties
-        if timeline_item.GetType() == "Audio" or timeline_item.GetMediaType() == "Audio":
+        if track_type == "audio":
             properties["audio"] = {
                 "volume": timeline_item.GetProperty("Volume"),
                 "pan": timeline_item.GetProperty("Pan"),
@@ -2138,13 +2224,14 @@ def get_timeline_item_properties(timeline_item_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Error getting timeline item properties: {str(e)}"}
 
-@mcp.resource("resolve://timeline-items")
-def get_timeline_items() -> List[Dict[str, Any]]:
+@mcp.resource("resolve://timeline-items-list")
+def get_timeline_items_resource() -> List[Dict[str, Any]]:
     """Get all items in the current timeline with their IDs and basic properties."""
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return [{"error": "Not connected to DaVinci Resolve"}]
     
-    project_manager = resolve.GetProjectManager()
+    project_manager = res.GetProjectManager()
     if not project_manager:
         return [{"error": "Failed to get Project Manager"}]
     
@@ -2354,9 +2441,6 @@ def set_timeline_item_composite(timeline_item_id: str,
         if not timeline_item:
             return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
         
-        if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
-        
         success = True
         
         # Set composite mode if specified
@@ -2527,28 +2611,29 @@ def set_timeline_item_stabilization(timeline_item_id: str,
         if not timeline_item:
             return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
         
-        if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
-        
         success = True
+        failed_properties = []
         
         # Set enabled if specified
         if enabled is not None:
             result = timeline_item.SetProperty("StabilizationEnable", 1 if enabled else 0)
             if not result:
                 success = False
+                failed_properties.append("StabilizationEnable")
         
         # Set method if specified
         if method:
             result = timeline_item.SetProperty("StabilizationMethod", method)
             if not result:
                 success = False
+                failed_properties.append("StabilizationMethod")
         
         # Set strength if specified
         if strength is not None:
             result = timeline_item.SetProperty("StabilizationStrength", strength)
             if not result:
                 success = False
+                failed_properties.append("StabilizationStrength")
         
         if success:
             changes = []
@@ -2561,7 +2646,10 @@ def set_timeline_item_stabilization(timeline_item_id: str,
             
             return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
         else:
-            return f"Failed to set some stabilization properties for timeline item '{timeline_item.GetName()}'"
+            return (
+                f"Failed to set stabilization properties for timeline item '{timeline_item.GetName()}'. "
+                f"Unsupported or read-only properties: {', '.join(failed_properties)}"
+            )
     except Exception as e:
         return f"Error setting timeline item stabilization properties: {str(e)}"
 
@@ -2605,62 +2693,34 @@ def set_timeline_item_audio(timeline_item_id: str,
     
     try:
         # Find the timeline item by ID
-        video_track_count = current_timeline.GetTrackCount("video")
-        audio_track_count = current_timeline.GetTrackCount("audio")
-        
-        timeline_item = None
-        is_audio = False
-        
-        # Search audio tracks first
-        for track_index in range(1, audio_track_count + 1):
-            items = current_timeline.GetItemListInTrack("audio", track_index)
-            if items:
-                for item in items:
-                    if str(item.GetUniqueId()) == timeline_item_id:
-                        timeline_item = item
-                        is_audio = True
-                        break
-            if timeline_item:
-                break
-        
-        # If not found in audio tracks, search video tracks (might be a video clip with audio)
-        if not timeline_item:
-            for track_index in range(1, video_track_count + 1):
-                items = current_timeline.GetItemListInTrack("video", track_index)
-                if items:
-                    for item in items:
-                        if str(item.GetUniqueId()) == timeline_item_id:
-                            timeline_item = item
-                            break
-                if timeline_item:
-                    break
+        timeline_item, track_type = _find_timeline_item_by_id(current_timeline, timeline_item_id, ("audio", "video"))
         
         if not timeline_item:
             return f"Error: Timeline item with ID '{timeline_item_id}' not found"
         
-        # Check if the item has audio capabilities
-        if not is_audio and timeline_item.GetMediaType() != "Audio":
-            return f"Error: Timeline item with ID '{timeline_item_id}' does not have audio properties"
-        
         success = True
+        failed_properties = []
         
         # Set volume if specified
         if volume is not None:
             result = timeline_item.SetProperty("Volume", volume)
             if not result:
                 success = False
+                failed_properties.append("Volume")
         
         # Set pan if specified
         if pan is not None:
             result = timeline_item.SetProperty("Pan", pan)
             if not result:
                 success = False
+                failed_properties.append("Pan")
         
         # Set EQ enabled if specified
         if eq_enabled is not None:
             result = timeline_item.SetProperty("EQEnable", 1 if eq_enabled else 0)
             if not result:
                 success = False
+                failed_properties.append("EQEnable")
         
         if success:
             changes = []
@@ -2673,7 +2733,10 @@ def set_timeline_item_audio(timeline_item_id: str,
             
             return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
         else:
-            return f"Failed to set some audio properties for timeline item '{timeline_item.GetName()}'"
+            return (
+                f"Failed to set audio properties for {track_type} timeline item '{timeline_item.GetName()}'. "
+                f"Unsupported or read-only properties: {', '.join(failed_properties)}"
+            )
     except Exception as e:
         return f"Error setting timeline item audio properties: {str(e)}"
 
@@ -2750,43 +2813,33 @@ def get_timeline_item_keyframes(timeline_item_id: str, property_name: str) -> Di
         # Audio-specific keyframeable properties
         audio_properties = ['Volume', 'Pan']
         
-        # Check if it's a video item
-        if timeline_item.GetType() == "Video":
-            # Check each property to see if it has keyframes
-            for prop in video_properties:
-                if timeline_item.GetKeyframeCount(prop) > 0:
-                    keyframeable_properties.append(prop)
-                    
-                    # Get all keyframes for this property
-                    keyframes[prop] = []
-                    keyframe_count = timeline_item.GetKeyframeCount(prop)
-                    
-                    for i in range(keyframe_count):
-                        # Get the frame position and value of the keyframe
-                        frame_pos = timeline_item.GetKeyframeAtIndex(prop, i)["frame"]
-                        value = timeline_item.GetPropertyAtKeyframeIndex(prop, i)
-                        
-                        keyframes[prop].append({
-                            "frame": frame_pos,
-                            "value": value
-                        })
+        get_keyframe_count_method = getattr(timeline_item, "GetKeyframeCount", None)
+        get_keyframe_at_index_method = getattr(timeline_item, "GetKeyframeAtIndex", None)
+        get_property_at_keyframe_index_method = getattr(timeline_item, "GetPropertyAtKeyframeIndex", None)
+        if not all(callable(method) for method in [
+            get_keyframe_count_method,
+            get_keyframe_at_index_method,
+            get_property_at_keyframe_index_method,
+        ]):
+            return {
+                "item_id": timeline_item_id,
+                "item_name": timeline_item.GetName(),
+                "properties": [],
+                "keyframes": {},
+                "info": "Timeline item does not expose keyframe inspection methods in this DaVinci Resolve scripting API build",
+            }
         
-        # Check if it has audio properties (could be video with audio or audio-only)
-        if timeline_item.GetType() == "Audio" or timeline_item.GetMediaType() == "Audio":
-            # Check each audio property for keyframes
-            for prop in audio_properties:
-                if timeline_item.GetKeyframeCount(prop) > 0:
+        property_sets = [("video", video_properties), ("audio", audio_properties)]
+        for item_type, properties_for_type in property_sets:
+            for prop in properties_for_type:
+                if get_keyframe_count_method(prop) > 0:
                     keyframeable_properties.append(prop)
-                    
-                    # Get all keyframes for this property
                     keyframes[prop] = []
-                    keyframe_count = timeline_item.GetKeyframeCount(prop)
+                    keyframe_count = get_keyframe_count_method(prop)
                     
                     for i in range(keyframe_count):
-                        # Get the frame position and value of the keyframe
-                        frame_pos = timeline_item.GetKeyframeAtIndex(prop, i)["frame"]
-                        value = timeline_item.GetPropertyAtKeyframeIndex(prop, i)
-                        
+                        frame_pos = get_keyframe_at_index_method(prop, i)["frame"]
+                        value = get_property_at_keyframe_index_method(prop, i)
                         keyframes[prop].append({
                             "frame": frame_pos,
                             "value": value
@@ -2897,8 +2950,8 @@ def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: f
         if is_audio and property_name not in audio_properties:
             return f"Error: Property '{property_name}' is not available for audio items"
         
-        if not is_audio and property_name not in video_properties and timeline_item.GetType() != "Video":
-            return f"Error: Property '{property_name}' is not available for this item type"
+        if not is_audio and property_name not in video_properties:
+            return f"Error: Property '{property_name}' is not available for video items"
             
         # Validate frame is within the item's range
         start_frame = timeline_item.GetStart()
@@ -2908,7 +2961,11 @@ def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: f
             return f"Error: Frame {frame} is outside the item's range ({start_frame} to {end_frame})"
         
         # Add the keyframe
-        result = timeline_item.AddKeyframe(property_name, frame, value)
+        add_keyframe_method = getattr(timeline_item, "AddKeyframe", None)
+        if not callable(add_keyframe_method):
+            return _missing_timeline_item_method(timeline_item, "AddKeyframe")
+        
+        result = add_keyframe_method(property_name, frame, value)
         
         if result:
             return f"Successfully added keyframe for {property_name} at frame {frame} with value {value}"
@@ -2981,7 +3038,11 @@ def modify_keyframe(timeline_item_id: str, property_name: str, frame: int, new_v
             return f"Error: Timeline item with ID '{timeline_item_id}' not found"
         
         # Check if the property has keyframes
-        keyframe_count = timeline_item.GetKeyframeCount(property_name)
+        get_keyframe_count_method = getattr(timeline_item, "GetKeyframeCount", None)
+        if not callable(get_keyframe_count_method):
+            return _missing_timeline_item_method(timeline_item, "GetKeyframeCount")
+        
+        keyframe_count = get_keyframe_count_method(property_name)
         if keyframe_count == 0:
             return f"Error: No keyframes found for property '{property_name}'"
         
@@ -3006,11 +3067,19 @@ def modify_keyframe(timeline_item_id: str, property_name: str, frame: int, new_v
                 
             # Delete the keyframe at the current frame
             current_value = timeline_item.GetPropertyAtKeyframeIndex(property_name, keyframe_index)
-            timeline_item.DeleteKeyframe(property_name, frame)
+            delete_keyframe_method = getattr(timeline_item, "DeleteKeyframe", None)
+            if not callable(delete_keyframe_method):
+                return _missing_timeline_item_method(timeline_item, "DeleteKeyframe")
+            
+            delete_keyframe_method(property_name, frame)
             
             # Add a new keyframe at the new frame position with the current value (or new value if specified)
             value = new_value if new_value is not None else current_value
-            result = timeline_item.AddKeyframe(property_name, new_frame, value)
+            add_keyframe_method = getattr(timeline_item, "AddKeyframe", None)
+            if not callable(add_keyframe_method):
+                return _missing_timeline_item_method(timeline_item, "AddKeyframe")
+            
+            result = add_keyframe_method(property_name, new_frame, value)
             
             if result:
                 return f"Successfully moved keyframe for {property_name} from frame {frame} to frame {new_frame}"
@@ -3019,8 +3088,16 @@ def modify_keyframe(timeline_item_id: str, property_name: str, frame: int, new_v
         else:
             # Only changing the value, not the frame position
             # We need to delete and re-add the keyframe with the new value
-            timeline_item.DeleteKeyframe(property_name, frame)
-            result = timeline_item.AddKeyframe(property_name, frame, new_value)
+            delete_keyframe_method = getattr(timeline_item, "DeleteKeyframe", None)
+            if not callable(delete_keyframe_method):
+                return _missing_timeline_item_method(timeline_item, "DeleteKeyframe")
+            
+            delete_keyframe_method(property_name, frame)
+            add_keyframe_method = getattr(timeline_item, "AddKeyframe", None)
+            if not callable(add_keyframe_method):
+                return _missing_timeline_item_method(timeline_item, "AddKeyframe")
+            
+            result = add_keyframe_method(property_name, frame, new_value)
             
             if result:
                 return f"Successfully updated keyframe value for {property_name} at frame {frame} to {new_value}"
@@ -3088,7 +3165,11 @@ def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> st
             return f"Error: Timeline item with ID '{timeline_item_id}' not found"
         
         # Check if the property has keyframes
-        keyframe_count = timeline_item.GetKeyframeCount(property_name)
+        get_keyframe_count_method = getattr(timeline_item, "GetKeyframeCount", None)
+        if not callable(get_keyframe_count_method):
+            return _missing_timeline_item_method(timeline_item, "GetKeyframeCount")
+        
+        keyframe_count = get_keyframe_count_method(property_name)
         if keyframe_count == 0:
             return f"Error: No keyframes found for property '{property_name}'"
         
@@ -3104,7 +3185,11 @@ def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> st
             return f"Error: No keyframe found at frame {frame} for property '{property_name}'"
         
         # Delete the keyframe
-        result = timeline_item.DeleteKeyframe(property_name, frame)
+        delete_keyframe_method = getattr(timeline_item, "DeleteKeyframe", None)
+        if not callable(delete_keyframe_method):
+            return _missing_timeline_item_method(timeline_item, "DeleteKeyframe")
+        
+        result = delete_keyframe_method(property_name, frame)
         
         if result:
             return f"Successfully deleted keyframe for {property_name} at frame {frame}"
@@ -3178,7 +3263,11 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
             return f"Error: Timeline item with ID '{timeline_item_id}' not found"
         
         # Check if the property has keyframes
-        keyframe_count = timeline_item.GetKeyframeCount(property_name)
+        get_keyframe_count_method = getattr(timeline_item, "GetKeyframeCount", None)
+        if not callable(get_keyframe_count_method):
+            return _missing_timeline_item_method(timeline_item, "GetKeyframeCount")
+        
+        keyframe_count = get_keyframe_count_method(property_name)
         if keyframe_count == 0:
             return f"Error: No keyframes found for property '{property_name}'"
         
@@ -3210,10 +3299,18 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
                 break
         
         # Delete the old keyframe
-        timeline_item.DeleteKeyframe(property_name, frame)
+        delete_keyframe_method = getattr(timeline_item, "DeleteKeyframe", None)
+        if not callable(delete_keyframe_method):
+            return _missing_timeline_item_method(timeline_item, "DeleteKeyframe")
+        
+        delete_keyframe_method(property_name, frame)
         
         # Add a new keyframe with the same value but different interpolation
-        result = timeline_item.AddKeyframe(property_name, frame, value, interpolation_map[interpolation_type])
+        add_keyframe_method = getattr(timeline_item, "AddKeyframe", None)
+        if not callable(add_keyframe_method):
+            return _missing_timeline_item_method(timeline_item, "AddKeyframe")
+        
+        result = add_keyframe_method(property_name, frame, value, interpolation_map[interpolation_type])
         
         if result:
             return f"Successfully set interpolation for {property_name} keyframe at frame {frame} to {interpolation_type}"
@@ -3271,9 +3368,6 @@ def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
         if not timeline_item:
             return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
         
-        if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
-        
         # Set the keyframe mode
         keyframe_mode_map = {
             'All': 0,
@@ -3281,7 +3375,11 @@ def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
             'Sizing': 2
         }
         
-        result = timeline_item.SetProperty("KeyframeMode", keyframe_mode_map[keyframe_mode])
+        set_property_method = getattr(timeline_item, "SetProperty", None)
+        if not callable(set_property_method):
+            return _missing_timeline_item_method(timeline_item, "SetProperty")
+        
+        result = set_property_method("KeyframeMode", keyframe_mode_map[keyframe_mode])
         
         if result:
             return f"Successfully enabled {keyframe_mode} keyframe mode for timeline item '{timeline_item.GetName()}'"
@@ -4805,15 +4903,16 @@ def execute_python(code: str) -> str:
     Args:
         code: The Python code to execute
     """
-    if resolve is None:
+    res = get_resolve()
+    if res is None:
         return "Error: Not connected to DaVinci Resolve"
     
     try:
         # Create a local scope with resolve object
-        local_scope = {"resolve": resolve}
+        local_scope = {"resolve": res}
         
         # Get project manager and current project for convenience
-        project_manager = resolve.GetProjectManager()
+        project_manager = res.GetProjectManager()
         if project_manager:
             local_scope["project_manager"] = project_manager
             current_project = project_manager.GetCurrentProject()

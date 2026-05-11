@@ -30,6 +30,8 @@ PROJECT_PROPERTY_TYPES = {
     "colorScienceMode": "int",
     "timelineColorSpace": "string",
     "timelineGamma": "string",
+    "colorSpaceTimeline": "string",
+    "colorSpaceTimelineGamma": "string",
     "inputDRT": "string",
     "outputDRT": "string",
     
@@ -53,6 +55,23 @@ PROJECT_PROPERTY_TYPES = {
     "ProxyQuality": "int",
     "TimelineCacheMode": "int",
 }
+
+TIMELINE_COLOR_SPACE_KEY = "colorSpaceTimeline"
+TIMELINE_COLOR_SPACE_GAMMA_KEY = "colorSpaceTimelineGamma"
+LEGACY_TIMELINE_COLOR_SPACE_KEY = "timelineColorSpace"
+LEGACY_TIMELINE_GAMMA_KEY = "timelineGamma"
+SEPARATE_COLOR_SPACE_GAMMA_KEY = "separateColorSpaceAndGamma"
+
+COLOR_SPACE_ALIASES = {
+    "Rec.709": "Rec.709 (Scene)",
+}
+
+def _timeline_color_space_value(color_space: str, gamma: str = None) -> str:
+    if gamma:
+        if color_space == "Rec.709" and gamma == "Gamma 2.4":
+            return "Rec.709 Gamma 2.4"
+        return f"{color_space} {gamma}"
+    return COLOR_SPACE_ALIASES.get(color_space, color_space)
 
 def get_all_project_properties(project_obj) -> Dict[str, Any]:
     """
@@ -484,14 +503,23 @@ def set_color_space(project_obj, color_space: str, gamma: str = None) -> bool:
     try:
         success = True
         
-        # Set timeline color space
-        if not set_project_property(project_obj, "timelineColorSpace", color_space):
+        combined_value = _timeline_color_space_value(color_space, gamma)
+        if set_project_property(project_obj, TIMELINE_COLOR_SPACE_KEY, combined_value):
+            return True
+
+        # Some projects expose split color-space/gamma controls. Fall back to
+        # those keys only after the combined timeline color-space value fails.
+        if gamma is not None and get_project_property(project_obj, SEPARATE_COLOR_SPACE_GAMMA_KEY) == "1":
+            success = set_project_property(project_obj, TIMELINE_COLOR_SPACE_KEY, color_space)
+            success = set_project_property(project_obj, TIMELINE_COLOR_SPACE_GAMMA_KEY, gamma) and success
+            if success:
+                return True
+
+        # Older helper keys are retained for compatibility with older Resolve builds.
+        if not set_project_property(project_obj, LEGACY_TIMELINE_COLOR_SPACE_KEY, color_space):
             success = False
-        
-        # Set gamma if provided
-        if gamma is not None:
-            if not set_project_property(project_obj, "timelineGamma", gamma):
-                success = False
+        if gamma is not None and not set_project_property(project_obj, LEGACY_TIMELINE_GAMMA_KEY, gamma):
+            success = False
         
         return success
         
