@@ -1,10 +1,14 @@
 #!/bin/bash
 # Wrapper script to run the DaVinci Resolve MCP Server with the virtual environment
 
-# Source environment variables if not already set
-if [ -z "$RESOLVE_SCRIPT_API" ]; then
-  source "/Users/ppt04/.zshrc"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Activate virtual environment and run server
-"/Users/ppt04/Github/davinci-resolve-mcp/scripts/venv/bin/python" "/Users/ppt04/Github/davinci-resolve-mcp/scripts/../src/main.py" "$@"
+if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
+  PYTHON="$PROJECT_ROOT/venv/bin/python"
+else
+  PYTHON="python3"
+fi
+
+exec "$PYTHON" "$PROJECT_ROOT/src/main.py" "$@"

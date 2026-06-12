@@ -5,7 +5,7 @@ This guide provides step-by-step instructions for installing and configuring the
 ## Prerequisites
 
 - DaVinci Resolve installed (Free or Studio version)
-- Python 3.9+ installed
+- Python 3.10+ installed
 - Cursor AI installed
 
 ## Installation Steps

@@ -39,7 +39,6 @@ if RESOLVE_MODULES_PATH not in sys.path:
 from mcp.server.fastmcp import FastMCP
 
 # Import our utility functions
-from src.utils.platform import setup_environment, get_platform, get_resolve_paths
 from src.utils.object_inspection import (
     inspect_object,
     get_object_methods,
@@ -4880,13 +4879,62 @@ def list_media_pool_items() -> str:
         
     return "\n".join(result)
 
+# Arbitrary code execution escape hatch. Disabled unless the user explicitly
+# opts in with RESOLVE_MCP_ALLOW_EXEC=1, because MCP tools are invoked by LLMs
+# that ingest untrusted content (clip names, markers, transcripts) and a
+# prompt injection could otherwise reach exec().
+if os.environ.get("RESOLVE_MCP_ALLOW_EXEC") == "1":
+    logger.warning(
+        "RESOLVE_MCP_ALLOW_EXEC=1: the execute_python tool is enabled. "
+        "Any MCP client can run arbitrary Python code on this machine."
+    )
+
+    @mcp.tool()
+    def execute_python(code: str) -> str:
+        """Execute arbitrary Python code in DaVinci Resolve context.
+
+        Args:
+            code: The Python code to execute
+        """
+        res = get_resolve()
+        if res is None:
+            return "Error: Not connected to DaVinci Resolve"
+
+        try:
+            # Fresh namespace seeded with convenience objects; deliberately not
+            # the module globals, so executed code can't mutate server state.
+            exec_scope = {"resolve": res}
+
+            # Get project manager and current project for convenience
+            project_manager = res.GetProjectManager()
+            if project_manager:
+                exec_scope["project_manager"] = project_manager
+                current_project = project_manager.GetCurrentProject()
+                if current_project:
+                    exec_scope["project"] = current_project
+                    exec_scope["media_pool"] = current_project.GetMediaPool()
+                    exec_scope["timeline"] = current_project.GetCurrentTimeline()
+
+            # Execute the code
+            exec(code, exec_scope)
+
+            # Check if 'result' variable was set
+            if "result" in exec_scope:
+                return str(exec_scope["result"])
+            else:
+                return "Executed successfully (no 'result' variable set)"
+
+        except Exception as e:
+            import traceback
+            return f"Error executing Python code: {str(e)}\n{traceback.format_exc()}"
+
 # Start the server
 if __name__ == "__main__":
     try:
         if resolve is None:
             logger.error("Cannot start server without connection to DaVinci Resolve")
             sys.exit(1)
-        
+
         logger.info("Starting DaVinci Resolve MCP Server")
         # Start the MCP server with the simple run method
         # Note: The MCP CLI tool handles port configuration, not FastMCP directly
@@ -4895,41 +4943,4 @@ if __name__ == "__main__":
         logger.info("Server shutdown requested")
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
-        sys.exit(1) 
-@mcp.tool()
-def execute_python(code: str) -> str:
-    """Execute arbitrary Python code in DaVinci Resolve context.
-    
-    Args:
-        code: The Python code to execute
-    """
-    res = get_resolve()
-    if res is None:
-        return "Error: Not connected to DaVinci Resolve"
-    
-    try:
-        # Create a local scope with resolve object
-        local_scope = {"resolve": res}
-        
-        # Get project manager and current project for convenience
-        project_manager = res.GetProjectManager()
-        if project_manager:
-            local_scope["project_manager"] = project_manager
-            current_project = project_manager.GetCurrentProject()
-            if current_project:
-                local_scope["project"] = current_project
-                local_scope["media_pool"] = current_project.GetMediaPool()
-                local_scope["timeline"] = current_project.GetCurrentTimeline()
-        
-        # Execute the code
-        exec(code, globals(), local_scope)
-        
-        # Check if 'result' variable was set
-        if "result" in local_scope:
-            return str(local_scope["result"])
-        else:
-            return "Executed successfully (no 'result' variable set)"
-            
-    except Exception as e:
-        import traceback
-        return f"Error executing Python code: {str(e)}\n{traceback.format_exc()}"
+        sys.exit(1)
