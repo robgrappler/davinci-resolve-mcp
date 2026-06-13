@@ -8,6 +8,8 @@ from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
 
+from davinci_resolve_mcp.handlers.timelines import list_timelines
+
 logger = logging.getLogger("davinci-resolve-mcp.media_pool")
 registry = HandlerRegistry()
 resource = registry.resource
