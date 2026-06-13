@@ -794,6 +794,65 @@ def set_timeline_item_name(timeline_item_id: str, name: str) -> str:
         return f"Error setting name: {str(e)}"
 
 
+@resource("resolve://timeline-items-list")
+def get_timeline_items_resource() -> List[Dict[str, Any]]:
+    """Get all items in the current timeline with their IDs and basic properties."""
+    if resolve is None:
+        return [{"error": "Not connected to DaVinci Resolve"}]
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return [{"error": "Failed to get Project Manager"}]
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return [{"error": "No project currently open"}]
+
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return [{"error": "No timeline currently active"}]
+
+    try:
+        video_track_count = current_timeline.GetTrackCount("video")
+        audio_track_count = current_timeline.GetTrackCount("audio")
+
+        items = []
+
+        for track_index in range(1, video_track_count + 1):
+            track_items = current_timeline.GetItemListInTrack("video", track_index)
+            if track_items:
+                for item in track_items:
+                    items.append({
+                        "id": str(item.GetUniqueId()),
+                        "name": item.GetName(),
+                        "type": "video",
+                        "track": track_index,
+                        "start_frame": item.GetStart(),
+                        "end_frame": item.GetEnd(),
+                        "duration": item.GetDuration(),
+                    })
+
+        for track_index in range(1, audio_track_count + 1):
+            track_items = current_timeline.GetItemListInTrack("audio", track_index)
+            if track_items:
+                for item in track_items:
+                    items.append({
+                        "id": str(item.GetUniqueId()),
+                        "name": item.GetName(),
+                        "type": "audio",
+                        "track": track_index,
+                        "start_frame": item.GetStart(),
+                        "end_frame": item.GetEnd(),
+                        "duration": item.GetDuration(),
+                    })
+
+        if not items:
+            return [{"info": "No items found in the current timeline"}]
+
+        return items
+    except Exception as e:
+        return [{"error": f"Error listing timeline items: {str(e)}"}]
+
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
     install_handlers(server, context, registry, globals())

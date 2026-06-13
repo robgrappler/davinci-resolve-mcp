@@ -50,6 +50,24 @@ def switch_page(page: str) -> str:
     else:
         return f"Failed to switch to {page} page"
 
+@tool()
+def debug_environment() -> Dict[str, Any]:
+    """Get debug information about the server environment."""
+    import sys
+    import os
+    import platform
+
+    return {
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "sys_path": sys.path,
+        "os_environ": {k: v for k, v in os.environ.items() if "RESOLVE" in k or "PYTHON" in k},
+        "cwd": os.getcwd(),
+        "resolve_connected": resolve is not None,
+        "resolve_product": resolve.GetProductName() if resolve else None,
+        "resolve_version": resolve.GetVersionString() if resolve else None,
+    }
+
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
     install_handlers(server, context, registry, globals())

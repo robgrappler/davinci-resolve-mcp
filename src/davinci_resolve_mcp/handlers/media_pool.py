@@ -244,6 +244,37 @@ def add_clip_to_timeline(clip_name: str, timeline_name: str = None,
     from src.api.media_operations import add_clip_to_timeline as add_clip_func
     return add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
 
+@tool()
+def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> str:
+    """Create a new timeline containing the specified list of clips.
+
+    Args:
+        timeline_name: Name for the new timeline
+        clip_names: List of clip names to include in order
+    """
+    from src.api.media_operations import create_timeline_from_clips as create_func
+    return create_func(resolve, timeline_name, clip_names)
+
+@tool()
+def list_media_pool_items() -> str:
+    """List all items in the media pool (recursive)."""
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+
+    project_manager = resolve.GetProjectManager()
+    current_project = project_manager.GetCurrentProject()
+    media_pool = current_project.GetMediaPool()
+
+    from davinci_resolve_mcp.handlers.delivery import get_all_media_pool_clips
+    clips = get_all_media_pool_clips(media_pool)
+    result = []
+    for c in clips:
+        name = c.GetName()
+        file_path = c.GetClipProperty("File Path")
+        result.append(f"Name: {name}, File Path: {file_path}")
+
+    return "\n".join(result)
+
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
     install_handlers(server, context, registry, globals())

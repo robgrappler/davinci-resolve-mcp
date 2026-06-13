@@ -469,6 +469,65 @@ def get_all_media_pool_folders(media_pool):
     process_folder(root_folder)
     return folders
 
+@tool()
+def add_to_render_queue_json(
+    preset_name: str,
+    timeline_name: str = None,
+    use_in_out_range: bool = False,
+) -> Dict[str, Any]:
+    """Pipeline-oriented wrapper around add_to_render_queue.
+
+    Returns a stable ``{"ok": bool, "data": ..., "error": ...}`` object
+    regardless of how the underlying helper formats its output.
+    """
+    from src.api.delivery_operations import add_to_render_queue as add_queue_func
+    from src.utils.response import success_response, error_response
+
+    logger.info(
+        "add_to_render_queue_json: preset=%s timeline=%s in_out=%s",
+        preset_name,
+        timeline_name,
+        use_in_out_range,
+    )
+    raw = add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
+    context = {"preset_name": preset_name, "timeline_name": timeline_name}
+
+    if isinstance(raw, dict) and "ok" in raw and "error" in raw:
+        return raw
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("Error:"):
+            return error_response(
+                code="ADD_TO_RENDER_QUEUE_ERROR",
+                message=text[len("Error:"):].strip() or text,
+                details={"raw": raw},
+                context=context,
+            )
+        if text.lower().startswith("failed"):
+            return error_response(
+                code="ADD_TO_RENDER_QUEUE_FAILED",
+                message=text,
+                details={"raw": raw},
+                context=context,
+            )
+        return success_response(data={"raw": raw}, message=text, context=context)
+    if isinstance(raw, dict) and "error" in raw and not raw.get("ok", True):
+        err = raw["error"]
+        if isinstance(err, dict):
+            return error_response(
+                code=err.get("code", "ADD_TO_RENDER_QUEUE_ERROR"),
+                message=err.get("message", str(err)),
+                details=err.get("details", raw),
+                context=context,
+            )
+        return error_response(
+            code="ADD_TO_RENDER_QUEUE_ERROR",
+            message=str(err),
+            details=raw,
+            context=context,
+        )
+    return success_response(data=raw, context=context)
+
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
     install_handlers(server, context, registry, globals())

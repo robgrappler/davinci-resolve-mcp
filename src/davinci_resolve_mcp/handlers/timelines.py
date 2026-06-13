@@ -204,6 +204,41 @@ def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> str:
     from api.timeline_operations import add_marker as add_marker_func
     return add_marker_func(resolve, frame, color, note)
 
+@tool()
+def set_current_frame(frame: int) -> str:
+    """Set the current playhead position to a specific frame.
+
+    Args:
+        frame: The frame number to move the playhead to
+    """
+    if resolve is None:
+        return "Error: Not connected to DaVinci Resolve"
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+
+    current_timeline = current_project.GetCurrentTimeline()
+    if not current_timeline:
+        return "Error: No timeline currently active"
+
+    from src.api.timeline_operations import set_current_frame as set_current_frame_func
+    return set_current_frame_func(resolve, frame)
+
+@tool()
+def razor_timeline(frame: int = None) -> str:
+    """Cut all clips at the current playhead position or a specified frame.
+
+    Args:
+        frame: The frame number to make the cut at (defaults to current playhead position if None)
+    """
+    from src.api.timeline_operations import razor_timeline as razor_timeline_func
+    return razor_timeline_func(resolve, frame)
+
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""
     install_handlers(server, context, registry, globals())
