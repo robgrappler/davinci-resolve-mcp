@@ -4,7 +4,8 @@
       "name": "DaVinci Resolve MCP",
       "command": "/path/to/your/venv/bin/python",
       "args": [
-        "/path/to/your/davinci-resolve-mcp/src/main.py"
+        "-m",
+        "davinci_resolve_mcp"
       ]
     }
   }

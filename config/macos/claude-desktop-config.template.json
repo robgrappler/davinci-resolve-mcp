@@ -3,7 +3,7 @@
     "davinci-resolve": {
       "name": "DaVinci Resolve MCP",
       "command": "${PROJECT_ROOT}/venv/bin/python",
-      "args": ["${PROJECT_ROOT}/resolve_mcp_server.py"],
+      "args": ["-m", "davinci_resolve_mcp"],
       "env": {
         "RESOLVE_SCRIPT_API": "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting",
         "RESOLVE_SCRIPT_LIB": "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so",
