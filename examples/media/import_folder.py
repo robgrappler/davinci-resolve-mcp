@@ -22,8 +22,16 @@ if RESOLVE_MODULES_PATH not in sys.path:
 import DaVinciResolveScript as dvr_script
 
 def main():
-    # Source folder path
-    source_folder = "/Users/samuelgursky/Desktop/20250326"
+    # Source folder path from the command line
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <source_folder>")
+        sys.exit(1)
+
+    source_folder = os.path.abspath(sys.argv[1])
+    if not os.path.isdir(source_folder):
+        print(f"Error: '{source_folder}' is not a directory")
+        sys.exit(1)
+
     bin_name = os.path.basename(source_folder)
     
     print(f"Importing from folder: {source_folder}")

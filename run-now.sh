@@ -1,1 +1,3 @@
-/Users/samuelgursky/davinci-resolve-mcp-20250401-02/davinci-resolve-mcp/scripts/run-now.sh
+#!/bin/bash
+# Delegates to the real quick-start script in scripts/.
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/run-now.sh" "$@"

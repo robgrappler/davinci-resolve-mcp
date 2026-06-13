@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.3.8-blue.svg)](https://github.com/samuelgursky/davinci-resolve-mcp/releases)
 [![DaVinci Resolve](https://img.shields.io/badge/DaVinci%20Resolve-18.5+-darkred.svg)](https://www.blackmagicdesign.com/products/davinciresolve)
-[![Python](https://img.shields.io/badge/python-3.6+-green.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/downloads/)
 [![macOS](https://img.shields.io/badge/macOS-stable-brightgreen.svg)](https://www.apple.com/macos/)
 [![Windows](https://img.shields.io/badge/Windows-stable-brightgreen.svg)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -16,9 +16,21 @@ For a comprehensive list of implemented and planned features, see [docs/FEATURES
 ## Requirements
 
 - **macOS** or **Windows** with DaVinci Resolve installed
-- **Python 3.6+**
+- **Python 3.10+** (required by the MCP SDK)
 - DaVinci Resolve running in the background
 - (Optional) Node.js/npm for some features
+
+## Security
+
+The optional `execute_python` tool lets an MCP client run arbitrary Python code on your machine with full access to the DaVinci Resolve scripting API. Because MCP tools are invoked by AI assistants that may process untrusted content (clip names, markers, transcripts), this tool is **disabled by default**.
+
+To enable it, set the environment variable before starting the server:
+
+```bash
+export RESOLVE_MCP_ALLOW_EXEC=1
+```
+
+Only enable this if you understand that any connected MCP client can then execute arbitrary code.
 
 ## Installation Guide
 
@@ -364,9 +376,10 @@ Make sure DaVinci Resolve is running before starting the server. If the server c
 ```
 davinci-resolve-mcp/
 ├── README.md               # This file
+├── CHANGELOG.md            # Version history
 ├── docs/                   # Documentation
 │   ├── FEATURES.md         # Feature list and status
-│   ├── CHANGELOG.md        # Version history
+│   ├── AUDIT.md            # Repository audit and improvement roadmap
 │   ├── VERSION.md          # Version information
 │   ├── TOOLS_README.md     # Tools documentation
 │   ├── PROJECT_MCP_SETUP.md # Project setup guide
@@ -453,7 +466,7 @@ When developing, it's recommended to use `./run-now.sh` which sets up the enviro
 
 ## Changelog
 
-See [docs/CHANGELOG.md](docs/CHANGELOG.md) for a detailed history of changes. 
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes. 
 
 ### Cursor-Specific Setup
 

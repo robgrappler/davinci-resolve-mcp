@@ -1,1 +1,3 @@
-/Users/samuelgursky/davinci-resolve-mcp-20250401-02/davinci-resolve-mcp/scripts/run-now.bat
+@echo off
+REM Delegates to the real quick-start script in scripts\.
+call "%~dp0scripts\run-now.bat" %*
