@@ -15,12 +15,14 @@ from . import (
     color,
     color_presets,
     delivery,
+    fusion,
     inspection,
     keyframes,
     layout_presets,
     media_pool,
     project_properties,
     projects,
+    scripting,
     system,
     timeline_items,
     timelines,
@@ -34,6 +36,7 @@ MODULES = (
     media_pool,
     color,
     delivery,
+    fusion,
     cache,
     timeline_items,
     keyframes,
@@ -43,6 +46,7 @@ MODULES = (
     app_control,
     cloud,
     project_properties,
+    scripting,
 )
 
 
