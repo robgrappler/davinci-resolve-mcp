@@ -331,7 +331,7 @@ def generate_optimized_media(clip_names: List[str] = None) -> str:
         try:
             for clip in clips_to_process:
                 clip.ClearFlags("Green")
-        except:
+        except Exception:
             pass
         return f"Error generating optimized media: {str(e)}"
 
@@ -413,7 +413,7 @@ def delete_optimized_media(clip_names: List[str] = None) -> str:
         try:
             for clip in clips_to_process:
                 clip.ClearFlags("Green")
-        except:
+        except Exception:
             pass
         return f"Error deleting optimized media: {str(e)}"
 

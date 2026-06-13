@@ -290,7 +290,7 @@ def add_marker(resolve, frame: Optional[int] = None, color: str = "Blue", note: 
                 track_clips = current_timeline.GetItemListInTrack("video", track_idx)
                 if track_clips and len(track_clips) > 0:
                     clips.extend(track_clips)
-            except:
+            except Exception:
                 continue
         
         if not clips:
@@ -714,31 +714,31 @@ def get_timeline_items(resolve, track_type: str = "video", track_index: int = 1)
             # Safely extract properties
             c_name = "Unknown"
             try: c_name = clip.GetName()
-            except: pass
+            except Exception: pass
             
             c_start = 0
             try: c_start = clip.GetStart()
-            except: pass
+            except Exception: pass
             
             c_end = 0
             try: c_end = clip.GetEnd()
-            except: pass
+            except Exception: pass
             
             c_dur = 0
             try: c_dur = clip.GetDuration()
-            except: pass
+            except Exception: pass
             
             c_id = ""
             try: 
                 if hasattr(clip, "GetUniqueId"):
                     c_id = str(clip.GetUniqueId())
-            except: pass
+            except Exception: pass
             
             c_type = "Unknown"
             try: 
                 if hasattr(clip, "GetType"):
                     c_type = clip.GetType()
-            except: pass
+            except Exception: pass
             
             item = {
                 "id": c_id,

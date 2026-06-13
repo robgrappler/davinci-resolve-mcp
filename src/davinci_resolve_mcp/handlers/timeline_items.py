@@ -286,7 +286,7 @@ def set_timeline_item_transform(timeline_item_id: str,
         else:
             try:
                 name = timeline_item.GetName()
-            except:
+            except Exception:
                 name = "Unknown"
             return f"Failed to set {property_name} for timeline item '{name}'" 
     except Exception as e:

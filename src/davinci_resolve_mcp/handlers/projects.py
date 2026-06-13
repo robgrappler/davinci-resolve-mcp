@@ -264,7 +264,7 @@ def save_project() -> str:
                     try:
                         if os.path.exists(temp_file):
                             os.remove(temp_file)
-                    except:
+                    except Exception:
                         pass
                     success = True
             except Exception as e:

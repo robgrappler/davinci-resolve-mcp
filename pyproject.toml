@@ -39,6 +39,7 @@ line-length = 120
 [tool.ruff.lint]
 select = [
     "F",     # pyflakes — catches real bugs (undefined names, unused vars)
+    "E722",  # bare except — catches bugs that hide real errors
 ]
 ignore = [
     "F401",  # unused imports — too many to fix at once; Phase 4
