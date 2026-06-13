@@ -480,8 +480,8 @@ def add_to_render_queue_json(
     Returns a stable ``{"ok": bool, "data": ..., "error": ...}`` object
     regardless of how the underlying helper formats its output.
     """
-    from src.api.delivery_operations import add_to_render_queue as add_queue_func
-    from src.utils.response import success_response, error_response
+    from davinci_resolve_mcp.api.delivery_operations import add_to_render_queue as add_queue_func
+    from davinci_resolve_mcp.utils.response import success_response, error_response
 
     logger.info(
         "add_to_render_queue_json: preset=%s timeline=%s in_out=%s",

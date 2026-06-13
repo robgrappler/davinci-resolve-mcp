@@ -24,7 +24,7 @@ def add_fusion_effect(timeline_item_id: str, effect_name: str, settings: Dict[st
         settings: Dictionary of settings to apply to the tool (e.g. {"Gain": 2.0})
     """
     try:
-        from src.api.fusion_operations import add_fusion_effect as add_fusion_effect_func
+        from davinci_resolve_mcp.api.fusion_operations import add_fusion_effect as add_fusion_effect_func
         return add_fusion_effect_func(resolve, timeline_item_id, effect_name, settings)
     except Exception as e:
         logger.error("Error adding fusion effect: %s", e, exc_info=True)
@@ -40,7 +40,7 @@ def add_fusion_generator(timeline_item_id: str, generator_name: str, settings: D
         settings: Dictionary of settings to apply to the tool
     """
     try:
-        from src.api.fusion_operations import add_fusion_generator as add_gen_func
+        from davinci_resolve_mcp.api.fusion_operations import add_fusion_generator as add_gen_func
         return add_gen_func(resolve, timeline_item_id, generator_name, settings)
     except Exception as e:
         logger.error("Error adding fusion generator: %s", e, exc_info=True)

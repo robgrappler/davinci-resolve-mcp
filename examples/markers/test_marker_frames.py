@@ -35,7 +35,7 @@ os.environ["RESOLVE_SCRIPT_LIB"] = RESOLVE_LIB_PATH
 sys.path.append(RESOLVE_MODULES_PATH)
 
 # Import the timeline_operations module from the project
-from src.api.timeline_operations import add_marker
+from davinci_resolve_mcp.api.timeline_operations import add_marker
 
 # Import DaVinci Resolve scripting
 import DaVinciResolveScript as dvr_script
