@@ -4110,19 +4110,23 @@ def export_all_powergrade_luts(export_dir: str) -> str:
         if not os.path.exists(export_dir):
             os.makedirs(export_dir, exist_ok=True)
         
+        current_timeline = current_project.GetCurrentTimeline()
+        if not current_timeline:
+            return "Error: No timeline currently open"
+
         # Export each still as a LUT
         exported_count = 0
         failed_stills = []
-        
+
         for still in stills:
             still_name = still.GetLabel()
             if not still_name:
                 still_name = f"PowerGrade_{still.GetUniqueId()}"
-            
+
             # Create safe filename
             safe_name = ''.join(c if c.isalnum() or c in ['-', '_'] else '_' for c in still_name)
             lut_path = os.path.join(export_dir, f"{safe_name}.cube")
-            
+
             # Apply the still to the current clip
             current_clip = current_timeline.GetCurrentVideoItem()
             if not current_clip:

@@ -2,29 +2,40 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - master
-      - develop
-      - "*"
+    branches: [main, master, develop]
   pull_request:
 
 jobs:
-  tests:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install dependencies
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff>=0.4
+      - name: Ruff check
+        run: ruff check src/ tests/unit/
+
+  tests:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package with dev dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e ".[dev]"
       - name: Run tests
         env:
           PYTHONPATH: src
-        run: |
-          # Ignore example scripts and integration tests that require local DaVinci Resolve or MCP server
-          pytest --ignore=examples/markers/test_marker_frames.py \
-                 --ignore=tests/unit/test_system_handlers.py
+        run: pytest
