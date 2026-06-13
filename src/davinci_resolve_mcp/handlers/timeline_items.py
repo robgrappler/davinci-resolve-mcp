@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
@@ -286,7 +286,7 @@ def set_timeline_item_transform(timeline_item_id: str,
         else:
             try:
                 name = timeline_item.GetName()
-            except:
+            except Exception:
                 name = "Unknown"
             return f"Failed to set {property_name} for timeline item '{name}'" 
     except Exception as e:

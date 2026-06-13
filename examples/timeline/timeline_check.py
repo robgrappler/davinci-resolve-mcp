@@ -64,7 +64,7 @@ def main():
     try:
         start_timecode = current_timeline.GetStartTimecode()
         print(f"Timeline actual start timecode: {start_timecode}")
-    except:
+    except Exception:
         print("Could not get actual start timecode")
     
     # Check timecode display settings
@@ -86,7 +86,7 @@ def main():
             track_clips = current_timeline.GetItemListInTrack("video", track_idx)
             if track_clips and len(track_clips) > 0:
                 clips.extend(track_clips)
-        except:
+        except Exception:
             continue
     
     print(f"\nFound {len(clips)} clips:")

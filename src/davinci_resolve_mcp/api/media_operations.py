@@ -992,7 +992,7 @@ def create_sub_clip(resolve, clip_name: str, start_frame: int, end_frame: int,
         # Always clear the mark in/out points in case of exceptions
         try:
             source_clip.ClearMarkInOut()
-        except:
+        except Exception:
             pass
         
         return f"Error creating subclip: {str(e)}"

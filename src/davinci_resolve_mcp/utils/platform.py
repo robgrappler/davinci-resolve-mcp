@@ -43,17 +43,17 @@ def get_resolve_paths():
         lib_path = os.path.join(program_files_64, 'Blackmagic Design', 'DaVinci Resolve', 'fusionscript.dll')
         modules_path = os.path.join(api_path, "Modules")
     
-    elif platform_name == 'linux':  # Linux (not fully implemented)
-        # Default locations for Linux - these may need to be adjusted
+    elif platform_name == 'linux':  # Linux (best-effort — README lists Linux as unsupported)
+        # Paths from Blackmagic Design's official Resolve_Linux.run installer.
         api_path = "/opt/resolve/Developer/Scripting"
-        lib_path = "/opt/resolve/libs/fusionscript.so"
+        lib_path = "/opt/resolve/libs/Fusion/fusionscript.so"
         modules_path = os.path.join(api_path, "Modules")
-    
+
     else:
-        # Fallback to macOS paths if unknown platform
-        api_path = "/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting"
-        lib_path = "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"
-        modules_path = os.path.join(api_path, "Modules")
+        raise RuntimeError(
+            f"Unsupported platform '{platform_name}'. "
+            "DaVinci Resolve MCP supports macOS and Windows; Linux is best-effort."
+        )
     
     return {
         "api_path": api_path,

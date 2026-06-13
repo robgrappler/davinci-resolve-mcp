@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
@@ -290,7 +290,7 @@ def apply_color_preset(preset_id: str = None, preset_name: str = None,
         if result:
             return f"Successfully applied color preset to {'specified clip' if clip_name else 'current clip'}"
         else:
-            return f"Failed to apply color preset"
+            return "Failed to apply color preset"
     
     except Exception as e:
         # Return to the original page if we switched
@@ -380,7 +380,7 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None,
         if result:
             return f"Successfully deleted color preset from album '{album_name}'"
         else:
-            return f"Failed to delete color preset"
+            return "Failed to delete color preset"
     
     except Exception as e:
         # Return to the original page if we switched
@@ -631,7 +631,7 @@ def export_lut(clip_name: str = None,
         if result:
             return f"Successfully exported LUT to '{export_path}' in {lut_format} format with {lut_size} size"
         else:
-            return f"Failed to export LUT"
+            return "Failed to export LUT"
     
     except Exception as e:
         # Return to the original page if we switched

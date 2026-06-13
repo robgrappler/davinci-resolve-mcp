@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
 from davinci_resolve_mcp.utils.object_inspection import (
     inspect_object,
-    get_object_methods,
-    get_object_properties,
     print_object_help,
-    convert_lua_to_python,
 )
 
 logger = logging.getLogger("davinci-resolve-mcp.inspection")

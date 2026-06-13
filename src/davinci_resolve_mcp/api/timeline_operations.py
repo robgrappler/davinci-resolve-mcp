@@ -290,7 +290,7 @@ def add_marker(resolve, frame: Optional[int] = None, color: str = "Blue", note: 
                 track_clips = current_timeline.GetItemListInTrack("video", track_idx)
                 if track_clips and len(track_clips) > 0:
                     clips.extend(track_clips)
-            except:
+            except Exception:
                 continue
         
         if not clips:
@@ -349,7 +349,6 @@ def add_marker(resolve, frame: Optional[int] = None, color: str = "Blue", note: 
             # Check if frame already has a marker
             if frame in existing_markers:
                 # Suggest an alternate frame
-                alternate_found = False
                 alternates = [frame + 1, frame - 1, frame + 2, frame + 5, frame + 10]
                 
                 for alt_frame in alternates:
@@ -441,7 +440,7 @@ def delete_timeline(resolve, name: str) -> str:
             # Switch to this timeline first
             current_project.SetCurrentTimeline(another_timeline)
         else:
-            return f"Error: Cannot delete the only timeline in the project. Create a new timeline first."
+            return "Error: Cannot delete the only timeline in the project. Create a new timeline first."
     
     # Now delete the timeline
     try:
@@ -714,31 +713,31 @@ def get_timeline_items(resolve, track_type: str = "video", track_index: int = 1)
             # Safely extract properties
             c_name = "Unknown"
             try: c_name = clip.GetName()
-            except: pass
+            except Exception: pass
             
             c_start = 0
             try: c_start = clip.GetStart()
-            except: pass
+            except Exception: pass
             
             c_end = 0
             try: c_end = clip.GetEnd()
-            except: pass
+            except Exception: pass
             
             c_dur = 0
             try: c_dur = clip.GetDuration()
-            except: pass
+            except Exception: pass
             
             c_id = ""
             try: 
                 if hasattr(clip, "GetUniqueId"):
                     c_id = str(clip.GetUniqueId())
-            except: pass
+            except Exception: pass
             
             c_type = "Unknown"
             try: 
                 if hasattr(clip, "GetType"):
                     c_type = clip.GetType()
-            except: pass
+            except Exception: pass
             
             item = {
                 "id": c_id,

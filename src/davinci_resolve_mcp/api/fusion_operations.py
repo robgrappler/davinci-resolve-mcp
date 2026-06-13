@@ -1,5 +1,5 @@
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger("davinci-resolve-mcp")
@@ -27,11 +27,9 @@ def get_item_by_id(resolve, timeline_item_id: str):
     if not timeline:
         return None
 
-    # Iterating all tracks...
+    # Iterating all tracks... we only care about Video for Fusion effects
     track_count_video = timeline.GetTrackCount("video")
-    track_count_audio = timeline.GetTrackCount("audio")
-    
-    # We only care about Video for Fusion effects usually
+
     for i in range(1, track_count_video + 1):
         items = timeline.GetItemListInTrack("video", i)
         if items:
@@ -43,7 +41,7 @@ def get_item_by_id(resolve, timeline_item_id: str):
                     uid = item.GetUniqueId()
                     if str(uid) == str(timeline_item_id):
                         return item
-                except:
+                except Exception:
                     pass
                 
                 # Fallback: maybe the ID passed is just the name? (Risky)
@@ -248,7 +246,7 @@ def add_fusion_generator(resolve, timeline_item_id: str, generator_name: str, se
                                 else:
                                     kf_cmd = f"{gen_tool.Name}.{key}[{f_num}] = {kf_val}"
                                 comp.Execute(kf_cmd)
-                            except:
+                            except Exception:
                                 pass
                     else:
                         gen_tool.SetInput(key, val)

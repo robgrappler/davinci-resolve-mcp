@@ -4,7 +4,7 @@ DaVinci Resolve Delivery Page Operations
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger("davinci-resolve-mcp.delivery")
 
@@ -388,7 +388,7 @@ def get_render_queue_status(resolve) -> Dict[str, Any]:
                     time_remaining = current_project.GetRenderJobEstimatedTimeRemaining(job_id)
                     if time_remaining:
                         job_info["time_remaining"] = time_remaining
-                except:
+                except Exception:
                     # Not all properties are available for all job states
                     pass
                 
@@ -468,7 +468,7 @@ def clear_render_queue(resolve) -> Dict[str, Any]:
                 if status == "Rendering":
                     is_rendering = True
                     break
-            except:
+            except Exception:
                 pass
         
         # If jobs are rendering, we need to stop rendering first

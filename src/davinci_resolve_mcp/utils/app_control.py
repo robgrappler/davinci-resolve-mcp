@@ -8,13 +8,12 @@ This module provides functions for controlling DaVinci Resolve application:
 - Handling basic application functions
 """
 
-import os
 import logging
 import time
 import sys
 import platform
 import subprocess
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any
 
 # Configure logging
 logger = logging.getLogger("davinci-resolve-mcp.app_control")
@@ -122,17 +121,17 @@ def get_app_state(resolve_obj) -> Dict[str, Any]:
     if resolve_obj:
         try:
             state["version"] = resolve_obj.GetVersionString()
-        except:
+        except Exception:
             pass
             
         try:
             state["product_name"] = resolve_obj.GetProductName()
-        except:
+        except Exception:
             pass
             
         try:
             state["current_page"] = resolve_obj.GetCurrentPage()
-        except:
+        except Exception:
             state["current_page"] = "Unknown"
             
         # Get project manager and project information
