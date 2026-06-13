@@ -1,52 +1,49 @@
-# DaVinci Resolve MCP Server development rules for Cursor
+# DaVinci Resolve MCP Server — Cursor rules
 
-# Rules for the project
 rules:
-  # Quick navigation commands
   - name: View project structure
     match: /(project|structure|files)/i
     actions: ls -la
-    
-  - name: Show main server file
-    match: /show (server|main|resolve_mcp_server)( file)?/i
-    actions: cat resolve_mcp_server.py
-    
-  - name: Edit main server file
-    match: /edit (server|main|resolve_mcp_server)( file)?/i
-    actions: open resolve_mcp_server.py
 
-  # Run commands
-  - name: Run server in dev mode
-    match: /run( server)?( in dev)?/i
-    actions: ./run-now.sh
-    
-  - name: Setup server
-    match: /setup( server)?/i
-    actions: ./setup.sh
-    
-  # View logs and instructions
+  - name: Show server entry point
+    match: /show (server|main|entry( point)?)/i
+    actions: cat src/davinci_resolve_mcp/__main__.py
+
+  - name: Open server package
+    match: /open (server|package|davinci_resolve_mcp)/i
+    actions: open src/davinci_resolve_mcp/
+
+  - name: Run server
+    match: /run( server)?/i
+    actions: python -m davinci_resolve_mcp
+
+  - name: Install in dev mode
+    match: /(install|setup)( dev| editable)?/i
+    actions: pip install -e ".[dev]"
+
+  - name: Run tests
+    match: /(run )?tests?/i
+    actions: pytest tests/unit/
+
   - name: Show README
     match: /show readme/i
     actions: cat README.md
-    
+
   - name: View changelog
     match: /show changelog/i
     actions: cat CHANGELOG.md
 
-  # DaVinci Resolve specific
   - name: Check Resolve environment
     match: /check (resolve|environment|env|paths)/i
     actions: |
       echo "RESOLVE_SCRIPT_API = $RESOLVE_SCRIPT_API"
       echo "RESOLVE_SCRIPT_LIB = $RESOLVE_SCRIPT_LIB"
       echo "PYTHONPATH = $PYTHONPATH"
-      
+
   - name: Check if Resolve is running
     match: /is resolve running/i
-    actions: ps -ef | grep -i "[D]aVinci Resolve"
+    actions: ./scripts/check-resolve-ready.sh
 
-# Directory settings
 directories:
-  # Ignore virtual environment folder in searches
   - path: venv
-    excludeFromSearch: true 
+    excludeFromSearch: true
