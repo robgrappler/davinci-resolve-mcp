@@ -72,18 +72,33 @@ else
     fail "RESOLVE_SCRIPT_LIB not set or file missing: '$lib_path'"
 fi
 
-# 3. Package importable
-if python3 -c "import davinci_resolve_mcp" >/dev/null 2>&1; then
-    ok "davinci_resolve_mcp package importable"
-elif command -v python >/dev/null 2>&1 && python -c "import davinci_resolve_mcp" >/dev/null 2>&1; then
-    ok "davinci_resolve_mcp package importable"
+# 3. Package importable — prefer the project venv created by install.sh,
+# fall back to whatever Python is on PATH.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENV_PYTHON="$PROJECT_ROOT/venv/bin/python"
+
+if [ -x "$VENV_PYTHON" ]; then
+    py="$VENV_PYTHON"
+elif command -v python3 >/dev/null 2>&1; then
+    py="python3"
+elif command -v python >/dev/null 2>&1; then
+    py="python"
 else
-    fail "davinci_resolve_mcp not installed. Run: pip install -e ."
+    py=""
+fi
+
+if [ -z "$py" ]; then
+    fail "No Python interpreter found"
+elif "$py" -c "import davinci_resolve_mcp" >/dev/null 2>&1; then
+    ok "davinci_resolve_mcp package importable ($py)"
+else
+    fail "davinci_resolve_mcp not installed in $py. Run: scripts/setup/install.sh"
 fi
 
 echo ""
 if [ $status -eq 0 ]; then
-    ok "All checks passed. Configure your MCP client to launch: python -m davinci_resolve_mcp"
+    ok "All checks passed. Configure your MCP client to launch: $py -m davinci_resolve_mcp"
 else
     warn "One or more checks failed. See messages above."
 fi

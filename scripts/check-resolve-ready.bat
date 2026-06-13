@@ -44,24 +44,36 @@ if exist "%RESOLVE_SCRIPT_LIB%" (
     set "status=1"
 )
 
-REM 3. Package importable
-where python >nul 2>&1
-if errorlevel 1 (
-    echo [FAIL] python not found on PATH
+REM 3. Package importable -- prefer the project venv created by install.bat,
+REM fall back to whatever python is on PATH.
+set "SCRIPT_DIR=%~dp0"
+for %%I in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fI"
+set "VENV_PYTHON=%PROJECT_ROOT%\venv\Scripts\python.exe"
+
+set "py="
+if exist "%VENV_PYTHON%" (
+    set "py=%VENV_PYTHON%"
+) else (
+    where python >nul 2>&1
+    if not errorlevel 1 set "py=python"
+)
+
+if not defined py (
+    echo [FAIL] No python interpreter found
     set "status=1"
 ) else (
-    python -c "import davinci_resolve_mcp" >nul 2>&1
+    "%py%" -c "import davinci_resolve_mcp" >nul 2>&1
     if errorlevel 1 (
-        echo [FAIL] davinci_resolve_mcp not installed. Run: pip install -e .
+        echo [FAIL] davinci_resolve_mcp not installed in %py%. Run: scripts\setup\install.bat
         set "status=1"
     ) else (
-        echo [ OK ] davinci_resolve_mcp package importable
+        echo [ OK ] davinci_resolve_mcp package importable ^(%py%^)
     )
 )
 
 echo.
 if "%status%"=="0" (
-    echo [ OK ] All checks passed. Configure your MCP client to launch: python -m davinci_resolve_mcp
+    echo [ OK ] All checks passed. Configure your MCP client to launch: "%py%" -m davinci_resolve_mcp
 ) else (
     echo [WARN] One or more checks failed. See messages above.
 )
