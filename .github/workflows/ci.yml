@@ -24,4 +24,7 @@ jobs:
       - name: Run tests
         env:
           PYTHONPATH: src
-        run: pytest
+        run: |
+          # Ignore example scripts and integration tests that require local DaVinci Resolve or MCP server
+          pytest --ignore=examples/markers/test_marker_frames.py \
+                 --ignore=tests/unit/test_system_handlers.py
