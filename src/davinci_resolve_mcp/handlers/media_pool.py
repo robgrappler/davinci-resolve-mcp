@@ -60,7 +60,7 @@ def import_media(file_path: str) -> str:
     Args:
         file_path: The path to the media file to import
     """
-    from src.api.media_operations import import_media as import_media_func
+    from davinci_resolve_mcp.api.media_operations import import_media as import_media_func
     return import_media_func(resolve, file_path)
 
 @tool()
@@ -70,7 +70,7 @@ def delete_media(clip_name: str) -> str:
     Args:
         clip_name: Name of the clip to delete
     """
-    from src.api.media_operations import delete_media as delete_media_func
+    from davinci_resolve_mcp.api.media_operations import delete_media as delete_media_func
     return delete_media_func(resolve, clip_name)
 
 @tool()
@@ -81,7 +81,7 @@ def move_media_to_bin(clip_name: str, bin_name: str) -> str:
         clip_name: Name of the clip to move
         bin_name: Name of the target bin
     """
-    from src.api.media_operations import move_media_to_bin as move_media_func
+    from davinci_resolve_mcp.api.media_operations import move_media_to_bin as move_media_func
     return move_media_func(resolve, clip_name, bin_name)
 
 @tool()
@@ -95,7 +95,7 @@ def auto_sync_audio(clip_names: List[str], sync_method: str = "waveform",
         append_mode: Whether to append the audio or replace it
         target_bin: Optional bin to move synchronized clips to
     """
-    from src.api.media_operations import auto_sync_audio as auto_sync_audio_func
+    from davinci_resolve_mcp.api.media_operations import auto_sync_audio as auto_sync_audio_func
     return auto_sync_audio_func(resolve, clip_names, sync_method, append_mode, target_bin)
 
 @tool()
@@ -105,7 +105,7 @@ def unlink_clips(clip_names: List[str]) -> str:
     Args:
         clip_names: List of clip names to unlink
     """
-    from src.api.media_operations import unlink_clips as unlink_clips_func
+    from davinci_resolve_mcp.api.media_operations import unlink_clips as unlink_clips_func
     return unlink_clips_func(resolve, clip_names)
 
 @tool()
@@ -119,7 +119,7 @@ def relink_clips(clip_names: List[str], media_paths: List[str] = None,
         folder_path: Optional folder path to search for media files
         recursive: Whether to search the folder path recursively
     """
-    from src.api.media_operations import relink_clips as relink_clips_func
+    from davinci_resolve_mcp.api.media_operations import relink_clips as relink_clips_func
     return relink_clips_func(resolve, clip_names, media_paths, folder_path, recursive)
 
 @tool()
@@ -134,7 +134,7 @@ def create_sub_clip(clip_name: str, start_frame: int, end_frame: int,
         sub_clip_name: Optional name for the subclip (defaults to original name with '_subclip')
         bin_name: Optional bin to place the subclip in
     """
-    from src.api.media_operations import create_sub_clip as create_sub_clip_func
+    from davinci_resolve_mcp.api.media_operations import create_sub_clip as create_sub_clip_func
     return create_sub_clip_func(resolve, clip_name, start_frame, end_frame, sub_clip_name, bin_name)
 
 @tool()
@@ -144,13 +144,13 @@ def create_bin(name: str) -> str:
     Args:
         name: The name for the new bin
     """
-    from src.api.media_operations import create_bin as create_bin_func
+    from davinci_resolve_mcp.api.media_operations import create_bin as create_bin_func
     return create_bin_func(resolve, name)
 
 @resource("resolve://media-pool-bins")
 def list_media_pool_bins() -> List[Dict[str, Any]]:
     """List all bins/folders in the media pool."""
-    from src.api.media_operations import list_bins as list_bins_func
+    from davinci_resolve_mcp.api.media_operations import list_bins as list_bins_func
     return list_bins_func(resolve)
 
 @resource("resolve://media-pool-bin/{bin_name}")
@@ -160,7 +160,7 @@ def get_media_pool_bin_contents(bin_name: str) -> List[Dict[str, Any]]:
     Args:
         bin_name: The name of the bin to get contents from. Use 'Master' for the root folder.
     """
-    from src.api.media_operations import get_bin_contents as get_bin_contents_func
+    from davinci_resolve_mcp.api.media_operations import get_bin_contents as get_bin_contents_func
     return get_bin_contents_func(resolve, bin_name)
 
 @resource("resolve://timeline-clips")
@@ -241,7 +241,7 @@ def add_clip_to_timeline(clip_name: str, timeline_name: str = None,
         start_frame: Optional start frame (in point) to use from the source clip
         end_frame: Optional end frame (out point) to use from the source clip
     """
-    from src.api.media_operations import add_clip_to_timeline as add_clip_func
+    from davinci_resolve_mcp.api.media_operations import add_clip_to_timeline as add_clip_func
     return add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
 
 @tool()
@@ -252,7 +252,7 @@ def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> str
         timeline_name: Name for the new timeline
         clip_names: List of clip names to include in order
     """
-    from src.api.media_operations import create_timeline_from_clips as create_func
+    from davinci_resolve_mcp.api.media_operations import create_timeline_from_clips as create_func
     return create_func(resolve, timeline_name, clip_names)
 
 @tool()

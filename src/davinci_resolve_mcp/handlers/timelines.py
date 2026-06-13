@@ -226,7 +226,7 @@ def set_current_frame(frame: int) -> str:
     if not current_timeline:
         return "Error: No timeline currently active"
 
-    from src.api.timeline_operations import set_current_frame as set_current_frame_func
+    from davinci_resolve_mcp.api.timeline_operations import set_current_frame as set_current_frame_func
     return set_current_frame_func(resolve, frame)
 
 @tool()
@@ -236,7 +236,7 @@ def razor_timeline(frame: int = None) -> str:
     Args:
         frame: The frame number to make the cut at (defaults to current playhead position if None)
     """
-    from src.api.timeline_operations import razor_timeline as razor_timeline_func
+    from davinci_resolve_mcp.api.timeline_operations import razor_timeline as razor_timeline_func
     return razor_timeline_func(resolve, frame)
 
 def register(server: FastMCP, context: ResolveContext) -> None:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Optional
 
-from src.utils.platform import get_platform, get_resolve_paths, setup_environment
-from src.utils.resolve_connection import initialize_resolve
+from davinci_resolve_mcp.utils.platform import get_platform, get_resolve_paths, setup_environment
+from davinci_resolve_mcp.utils.resolve_connection import initialize_resolve
 
 Connector = Callable[[], Optional[Any]]
 

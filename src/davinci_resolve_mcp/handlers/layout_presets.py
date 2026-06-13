@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
-from src.utils.layout_presets import (
+from davinci_resolve_mcp.utils.layout_presets import (
     list_layout_presets,
     save_layout_preset,
     load_layout_preset,

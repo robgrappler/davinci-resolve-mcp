@@ -1,8 +1,8 @@
-"""Test configuration for ensuring project modules are importable.
+"""Test configuration: ensure the davinci_resolve_mcp package is importable.
 
-Both paths are needed: src/ so `davinci_resolve_mcp` resolves, and the
-repo root so the `from src.utils...` / `from src.api...` imports used
-inside the package resolve (mirroring how src/main.py runs the server).
+After Phase 3 the package lives under src/davinci_resolve_mcp/.  Tests rely
+on the editable install (``pip install -e .``) wiring up the package, but
+the path is also added here so the suite works when run without an install.
 """
 
 from __future__ import annotations
@@ -10,9 +10,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = REPO_ROOT / "src"
-
-for path in (SRC_DIR, REPO_ROOT):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
+SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))

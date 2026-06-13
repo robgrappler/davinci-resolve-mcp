@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
-from src.utils.cloud_operations import (
+from davinci_resolve_mcp.utils.cloud_operations import (
     create_cloud_project,
     import_cloud_project,
     restore_cloud_project,

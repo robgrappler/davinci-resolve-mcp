@@ -1,217 +1,116 @@
-# DaVinci Resolve MCP Integration - Installation Guide
+# DaVinci Resolve MCP — Installation Guide
 
-This guide provides step-by-step instructions for installing and configuring the DaVinci Resolve MCP integration for use with Cursor AI. The integration allows Cursor AI to control DaVinci Resolve through its API.
+This guide walks through installing the DaVinci Resolve MCP server and
+configuring it for an AI assistant (Cursor, Claude Desktop, etc.).
 
 ## Prerequisites
 
-- DaVinci Resolve installed (Free or Studio version)
-- Python 3.10+ installed
-- Cursor AI installed
+- DaVinci Resolve 18.5+ (Free or Studio) installed
+- Python 3.10+ on PATH
+- The AI assistant you plan to use (Cursor, Claude Desktop, …)
 
-## Installation Steps
+## 1. Install the package
 
-### 1. New One-Step Installation (Recommended)
-
-We now provide a unified installation script that handles everything automatically, with robust error detection and configuration:
-
-**macOS/Linux:**
 ```bash
-# Make sure DaVinci Resolve is running, then:
-./install.sh
+git clone https://github.com/samuelgursky/davinci-resolve-mcp.git
+cd davinci-resolve-mcp
+./scripts/setup/install.sh         # macOS / Linux
+# or:  scripts\setup\install.bat   (Windows)
 ```
 
-**Windows:**
-```bash
-# Make sure DaVinci Resolve is running, then:
-install.bat
-```
+The installer creates a virtualenv at `./venv/`, runs `pip install -e .`,
+and prints the launch command (`python -m davinci_resolve_mcp`) for use in
+your MCP client's configuration.
 
-This new installation script will:
-- Detect the correct installation path automatically
-- Create the Python virtual environment
-- Install all required dependencies
-- Set up environment variables
-- Generate the correct Cursor MCP configuration
-- Verify the installation
-- Optionally start the server if everything is correct
+### Manual install
 
-### 2. Quick Start (Alternative)
-
-The earlier quick start scripts are still available:
-
-**macOS/Linux:**
-```bash
-# Make sure DaVinci Resolve is already running before executing this script
-./run-now.sh
-```
-
-**Windows:**
-```bash
-# Make sure DaVinci Resolve is already running before executing this script
-run-now.bat
-```
-
-### 3. Manual Setup (Advanced)
-
-If you prefer to set up the integration manually or if you encounter issues with the automatic methods:
-
-#### Step 3.1: Create a Python Virtual Environment
+If you prefer to set things up yourself:
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate           # Windows:  venv\Scripts\activate
+pip install -e .
 ```
 
-#### Step 3.2: Install Dependencies
+## 2. Configure the scripting environment
 
-```bash
-# Install all required dependencies from requirements.txt
-pip install -r requirements.txt
-```
+DaVinci Resolve's Python scripting API needs two environment variables.
+The MCP client config templates in `config/` already include them, but if
+you'd rather set them globally:
 
-Alternatively, you can install just the MCP SDK:
-
-```bash
-pip install "mcp[cli]"
-```
-
-#### Step 3.3: Set Environment Variables
-
-On macOS/Linux, add the following to your `~/.zshrc` or `~/.bashrc`:
-
+**macOS / Linux**
 ```bash
 export RESOLVE_SCRIPT_API="/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting"
 export RESOLVE_SCRIPT_LIB="/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"
 export PYTHONPATH="$PYTHONPATH:$RESOLVE_SCRIPT_API/Modules/"
 ```
 
-On Windows, set these environment variables in PowerShell or through System Properties:
-
+**Windows (PowerShell)**
 ```powershell
 $env:RESOLVE_SCRIPT_API = "C:\ProgramData\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting"
 $env:RESOLVE_SCRIPT_LIB = "C:\Program Files\Blackmagic Design\DaVinci Resolve\fusionscript.dll"
 $env:PYTHONPATH = "$env:PYTHONPATH;$env:RESOLVE_SCRIPT_API\Modules\"
 ```
 
-#### Step 3.4: Configure Cursor
+Add these to your shell profile (`~/.zshrc`, `~/.bashrc`, your PowerShell
+profile, …) to persist them.
 
-The installation creates two MCP configuration files:
+## 3. Configure your MCP client
 
-**System-level configuration**:
-- macOS/Linux: `~/.cursor/mcp/config.json`
-- Windows: `%APPDATA%\Cursor\mcp\config.json`
+Copy a template from `config/` and adjust the paths:
 
-**Project-level configuration**:
-- In the project root: `.cursor/mcp.json`
+| Client          | Platform | Template                                                  |
+|-----------------|----------|-----------------------------------------------------------|
+| Cursor          | macOS    | `config/macos/cursor-mcp-config.template.json`            |
+| Cursor          | Windows  | `config/windows/cursor-mcp-config.template.json`          |
+| Claude Desktop  | macOS    | `config/macos/claude-desktop-config.template.json`        |
+| Claude Desktop  | Windows  | `config/windows/claude-desktop-config.template.json`      |
 
-Both configurations use absolute paths to the Python interpreter and script. This ensures Cursor can find the correct files regardless of how the project is opened.
+Replace `${PROJECT_ROOT}` with the absolute path to your checkout. The
+templates launch the server via `python -m davinci_resolve_mcp`.
 
-#### Sample configuration:
-```json
-{
-  "mcpServers": {
-    "davinci-resolve": {
-      "name": "DaVinci Resolve MCP",
-      "command": "/Users/username/davinci-resolve-mcp/venv/bin/python",
-      "args": ["/Users/username/davinci-resolve-mcp/resolve_mcp_server.py"]
-    }
-  }
-}
-```
+Drop the resulting file into the client's MCP config location:
 
-The installation scripts automatically create both configuration files with the correct absolute paths for your system. If you need to move the project to a new location, you'll need to run the installation script again to update the paths.
+- **Cursor:** `~/.cursor/mcp.json` (or `%USERPROFILE%\.cursor\mcp.json`)
+- **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+  (or `%APPDATA%\Claude\claude_desktop_config.json`)
 
-### 4. Start the Integration
+## 4. Verify the setup
 
-For a more controlled setup with additional options:
+With DaVinci Resolve running:
 
-**macOS/Linux:**
 ```bash
-# From the scripts directory
-cd scripts
-./mcp_resolve-cursor_start
+./scripts/check-resolve-ready.sh        # macOS / Linux
+# or:  scripts\check-resolve-ready.bat  (Windows)
 ```
 
-### 5. Verify Your Installation
+The preflight checks:
+1. DaVinci Resolve process is running.
+2. `RESOLVE_SCRIPT_API` / `RESOLVE_SCRIPT_LIB` resolve to real paths.
+3. `davinci_resolve_mcp` package imports successfully.
 
-After completing the installation steps, you can verify that everything is set up correctly by running:
+Then start your MCP client and ask it to "list timelines" or "what version
+of DaVinci Resolve is running?" to confirm end-to-end.
 
-**macOS/Linux:**
-```bash
-./scripts/verify-installation.sh
-```
+## Optional: enabling `execute_python`
 
-**Windows:**
-```bash
-scripts\verify-installation.bat
-```
-
-This verification script checks:
-- Python virtual environment setup
-- MCP SDK installation
-- DaVinci Resolve running status
-- Cursor configuration
-- Environment variables
-- Server script presence
-
-If all checks pass, you're ready to use the integration. If any checks fail, the script will provide guidance on how to fix the issues.
+The `execute_python` tool runs arbitrary Python with full access to the
+Resolve scripting API and is **disabled by default**. To enable, set
+`RESOLVE_MCP_ALLOW_EXEC=1` in the MCP client's environment (`env` block in
+the JSON config). Only enable this if you understand that any connected
+MCP client can then execute arbitrary code.
 
 ## Troubleshooting
 
-### DaVinci Resolve Detection Issues
+- **"Failed to get Resolve object"** — DaVinci Resolve is not running, or
+  the scripting paths are wrong. Re-run the preflight script.
+- **"davinci_resolve_mcp not installed"** — re-run the installer, or
+  `pip install -e .` from the project root in the same Python environment
+  the MCP client is using.
+- **MCP client reports "client closed"** — verify the absolute paths in
+  the client config; relative paths break inside MCP client launchers.
+- **Env vars don't stick** — add them to your shell profile, or put them
+  in the `env` block of the MCP client config so they're set for the
+  child process.
 
-If the script cannot detect that DaVinci Resolve is running:
-
-1. Make sure DaVinci Resolve is actually running before executing scripts
-2. The detection method has been updated to use `ps -ef | grep -i "[D]aVinci Resolve"` instead of `pgrep`, which provides more reliable detection
-
-### Path Resolution Issues
-
-If you see errors related to file paths:
-
-1. The scripts now use the directory where they're located as the reference point
-2. Check that the `resolve_mcp_server.py` file exists in the expected location
-3. Verify that your Cursor MCP configuration points to the correct paths
-4. If you move the project to a new location, you'll need to run the installation script again to update the paths
-
-### Environment Variables
-
-If you encounter Python import errors:
-
-1. Verify that the environment variables are correctly set
-2. The paths may differ depending on your DaVinci Resolve installation location
-3. You can check the log file at `scripts/cursor_resolve_server.log` for details
-
-### Cursor Configuration Issues
-
-If Cursor isn't connecting to the MCP server:
-
-1. Check both the system-level and project-level configuration files
-2. Ensure the paths in the configurations match your actual installation
-3. The absolute paths must be correct - verify they point to your actual installation location
-4. After moving the project, run `./install.sh` or `install.bat` again to update the paths
-
-## Configuration Reference
-
-The integration creates two configuration files:
-
-1. **System-level config** (for global use): `~/.cursor/mcp/config.json` (macOS/Linux) or `%APPDATA%\Cursor\mcp\config.json` (Windows)
-2. **Project-level config** (for specific project use): `.cursor/mcp.json` in the project root
-
-Both configurations have the same structure:
-
-```json
-{
-  "mcpServers": {
-    "davinci-resolve": {
-      "name": "DaVinci Resolve MCP",
-      "command": "<absolute-path-to-python-interpreter>",
-      "args": ["<absolute-path-to-resolve_mcp_server.py>"]
-    }
-  }
-}
-```
-
-## Support
-
-If you encounter any issues not covered in this guide, please file an issue on the GitHub repository. 
+If problems persist, file an issue on the GitHub repository.

@@ -116,7 +116,7 @@ def main():
         print(f"Error: {str(e)}")
         print("\nTroubleshooting tips:")
         print("1. Make sure DaVinci Resolve is running")
-        print("2. Check that the MCP server is running (`./run-now.sh`)")
+        print("2. Check that the MCP server is running (`python -m davinci_resolve_mcp`)")
         print("3. Ensure a project is open in DaVinci Resolve")
         print("4. Check environment variables are set correctly")
         return 1

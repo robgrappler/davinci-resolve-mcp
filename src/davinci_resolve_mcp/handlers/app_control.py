@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
-from src.utils.app_control import (
+from davinci_resolve_mcp.utils.app_control import (
     quit_resolve_app,
     get_app_state,
     restart_resolve_app,

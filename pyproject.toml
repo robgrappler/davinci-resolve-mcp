@@ -25,12 +25,9 @@ dev = [
 [project.scripts]
 davinci-resolve-mcp = "davinci_resolve_mcp.__main__:main"
 
-[tool.setuptools]
-py-modules = []
-
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]
+include = ["davinci_resolve_mcp*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]

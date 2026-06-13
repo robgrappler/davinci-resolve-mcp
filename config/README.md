@@ -1,72 +1,60 @@
 # DaVinci Resolve MCP Configuration Templates
 
-This directory contains configuration templates for integrating DaVinci Resolve MCP with different AI assistant clients.
+Templates for wiring popular MCP clients to the DaVinci Resolve MCP
+server. The server is launched as the Python module
+`python -m davinci_resolve_mcp` (or the equivalent `davinci-resolve-mcp`
+console script installed by the package).
 
-## ⚠️ IMPORTANT: Path Configuration Required
+## ⚠️ Replace the placeholders
 
-**All template files require you to replace the placeholder paths with your actual paths to the repository.**
+Every template contains `${PROJECT_ROOT}` placeholders that you must
+replace with the absolute path to your checkout. MCP clients do not
+expand these variables automatically.
 
-The templates contain placeholders like `${PROJECT_ROOT}` that **MUST** be replaced with your actual filesystem paths. Cursor and other tools **do not** automatically resolve these variables.
+- macOS: `${PROJECT_ROOT}` → e.g. `/Users/username/davinci-resolve-mcp`
+- Windows: `${PROJECT_ROOT}` → e.g. `C:\Users\username\davinci-resolve-mcp`
 
-For example:
-- Replace `${PROJECT_ROOT}` with `/Users/username/davinci-resolve-mcp` on macOS
-- Replace `${PROJECT_ROOT}` with `C:\Users\username\davinci-resolve-mcp` on Windows
+Failure to replace the placeholders is the most common cause of "client
+closed" errors.
 
-**Failure to replace these placeholders is the most common cause of connection problems.**
+## Available templates
 
-## Available Templates
+| Client          | Platform | File                                              |
+|-----------------|----------|---------------------------------------------------|
+| Cursor          | macOS    | `macos/cursor-mcp-config.template.json`           |
+| Cursor          | Windows  | `windows/cursor-mcp-config.template.json`         |
+| Claude Desktop  | macOS    | `macos/claude-desktop-config.template.json`       |
+| Claude Desktop  | Windows  | `windows/claude-desktop-config.template.json`     |
+| Cursor (example, generic) | —      | `cursor-mcp-example.json`              |
 
-### Cursor Integration
+## Where to drop the file
 
-`cursor-mcp-config.template.json` - Template for configuring Cursor AI to use the DaVinci Resolve MCP server.
+- **Cursor:** `~/.cursor/mcp.json` (macOS) or
+  `%USERPROFILE%\.cursor\mcp.json` (Windows)
+- **Claude Desktop:**
+  `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+  or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
 
-To use this template:
+## Example (macOS, after substitution)
 
-1. Copy the contents to your Cursor MCP configuration file:
-   - macOS: `~/.cursor/mcp.json`
-   - Windows: `%APPDATA%\Cursor\mcp.json`
-
-2. Replace the placeholders with your actual paths:
-   - `${PROJECT_ROOT}` - Path to the DaVinci Resolve MCP repository
-
-Example (macOS):
 ```json
 {
   "mcpServers": {
     "davinci-resolve": {
       "name": "DaVinci Resolve MCP",
       "command": "/Users/username/davinci-resolve-mcp/venv/bin/python",
-      "args": ["/Users/username/davinci-resolve-mcp/resolve_mcp_server.py"]
+      "args": ["-m", "davinci_resolve_mcp"]
     }
   }
 }
 ```
 
-### Claude Desktop Integration
+The macOS / Windows templates also include an `env` block that pre-sets
+`RESOLVE_SCRIPT_API`, `RESOLVE_SCRIPT_LIB`, and `PYTHONPATH` for the
+launched server process.
 
-`claude-desktop-config.template.json` - Template for configuring Claude Desktop to use the DaVinci Resolve MCP server.
+## Enabling `execute_python`
 
-To use this template:
-
-- Copy the template to your Claude Desktop configuration directory (location varies by installation)
-  - Windows - %appdata%\Claude\claude_desktop_config.json
-- Rename it to `claude_desktop_config.json`
-- Replace the placeholders with your actual paths:
-   - `${PROJECT_ROOT}` - Path to the DaVinci Resolve MCP repository
-
-## Automatic Setup
-
-For automatic configuration, use the appropriate launch script which will set up the configuration for you:
-
-```bash
-# For Cursor
-./scripts/mcp_resolve-cursor_start
-
-# For Claude Desktop
-./scripts/mcp_resolve-claude_start
-```
-
-Or use the universal launcher:
-
-```bash
-./scripts/mcp_resolve_launcher.sh 
+Add `RESOLVE_MCP_ALLOW_EXEC: "1"` to the `env` block to opt in to the
+`execute_python` tool. This lets any connected client run arbitrary
+Python on your machine — only enable if you understand the risk.
