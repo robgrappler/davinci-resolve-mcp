@@ -349,7 +349,6 @@ def add_marker(resolve, frame: Optional[int] = None, color: str = "Blue", note: 
             # Check if frame already has a marker
             if frame in existing_markers:
                 # Suggest an alternate frame
-                alternate_found = False
                 alternates = [frame + 1, frame - 1, frame + 2, frame + 5, frame + 10]
                 
                 for alt_frame in alternates:
@@ -441,7 +440,7 @@ def delete_timeline(resolve, name: str) -> str:
             # Switch to this timeline first
             current_project.SetCurrentTimeline(another_timeline)
         else:
-            return f"Error: Cannot delete the only timeline in the project. Create a new timeline first."
+            return "Error: Cannot delete the only timeline in the project. Create a new timeline first."
     
     # Now delete the timeline
     try:

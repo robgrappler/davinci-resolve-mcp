@@ -1,5 +1,5 @@
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger("davinci-resolve-mcp")
@@ -27,11 +27,9 @@ def get_item_by_id(resolve, timeline_item_id: str):
     if not timeline:
         return None
 
-    # Iterating all tracks...
+    # Iterating all tracks... we only care about Video for Fusion effects
     track_count_video = timeline.GetTrackCount("video")
-    track_count_audio = timeline.GetTrackCount("audio")
-    
-    # We only care about Video for Fusion effects usually
+
     for i in range(1, track_count_video + 1):
         items = timeline.GetItemListInTrack("video", i)
         if items:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Iterable
-
 from mcp.server.fastmcp import FastMCP
 
 from davinci_resolve_mcp.context import ResolveContext

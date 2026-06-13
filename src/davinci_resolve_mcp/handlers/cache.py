@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
@@ -325,7 +325,7 @@ def generate_optimized_media(clip_names: List[str] = None) -> str:
         if result:
             return f"Successfully started optimized media generation for {len(clips_to_process)} clips"
         else:
-            return f"Failed to start optimized media generation"
+            return "Failed to start optimized media generation"
     except Exception as e:
         # Clean up flags in case of error
         try:
@@ -407,7 +407,7 @@ def delete_optimized_media(clip_names: List[str] = None) -> str:
         if result:
             return f"Successfully deleted optimized media for {len(clips_to_process)} clips"
         else:
-            return f"Failed to delete optimized media"
+            return "Failed to delete optimized media"
     except Exception as e:
         # Clean up flags in case of error
         try:
