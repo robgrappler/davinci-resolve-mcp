@@ -501,25 +501,15 @@ accomplish the task — prefer the typed tools.
 
 ## Memory MCP
 
-A **memory MCP server with timestamps** is configured globally in this
-Claude Code installation at:
+A memory MCP server with timestamps is configured in this Claude Code
+installation (local sessions only — remote/web containers cannot reach it).
 
-```
-~/.claude/mcp-servers/mcp-server-memory-with-timestamps.mjs
-MEMORY_FILE_PATH=~/.claude/mcp-memory.json
-```
-
-This is available automatically in **local** Claude Code sessions.  Remote /
-web-based sessions run in isolated containers that cannot reach local MCP
-servers — use the desktop or CLI Claude Code to get memory access.
-
-**Use memory to persist across context windows:**
+**Store these facts to avoid rediscovering them after context resets:**
 
 - Active project name and database location
-- Timeline names, FPS, and resolution discovered this session
-- Clip names and timeline item IDs (expensive to rediscover)
+- Timeline names, FPS, and resolution
+- Clip names and timeline item IDs (expensive to re-query)
 - Render preset names confirmed working
-- Any facts the user stated about their project structure
 
 Useful things to store: active project name, which timelines exist, clip
 names / IDs discovered this session, render job IDs.
