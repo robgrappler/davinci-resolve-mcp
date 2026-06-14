@@ -28,6 +28,7 @@ def _resolve_with_projects(project_names, current_project=None):
 # list_projects
 # ---------------------------------------------------------------------------
 
+
 def test_list_projects_not_connected():
     assert ops.list_projects(None) == ["Error: Not connected to DaVinci Resolve"]
 
@@ -46,6 +47,7 @@ def test_list_projects_filters_empty_names():
 # ---------------------------------------------------------------------------
 # get_current_project_name
 # ---------------------------------------------------------------------------
+
 
 def test_get_current_project_name_not_connected():
     assert ops.get_current_project_name(None) == "Error: Not connected to DaVinci Resolve"
@@ -66,6 +68,7 @@ def test_get_current_project_name_returns_name():
 # ---------------------------------------------------------------------------
 # open_project
 # ---------------------------------------------------------------------------
+
 
 def test_open_project_rejects_empty_name():
     resolve, _ = _resolve_with_projects(["A"])
@@ -96,6 +99,7 @@ def test_open_project_load_failure_reports_failure():
 # create_project
 # ---------------------------------------------------------------------------
 
+
 def test_create_project_rejects_empty_name():
     resolve, _ = _resolve_with_projects([])
     assert ops.create_project(resolve, "") == "Error: Project name cannot be empty"
@@ -123,6 +127,7 @@ def test_create_project_failure_reports_failure():
 # save_project
 # ---------------------------------------------------------------------------
 
+
 def test_save_project_not_connected():
     assert ops.save_project(None) == "Error: Not connected to DaVinci Resolve"
 
@@ -148,11 +153,14 @@ def test_save_project_handles_missing_media_pool():
     assert ops.save_project(resolve) == "Project is likely already saved (auto-save enabled)"
 
 
-@pytest.mark.parametrize("fn", [
-    ops.list_projects,
-    ops.get_current_project_name,
-    ops.save_project,
-])
+@pytest.mark.parametrize(
+    "fn",
+    [
+        ops.list_projects,
+        ops.get_current_project_name,
+        ops.save_project,
+    ],
+)
 def test_no_project_manager_branch(fn):
     """Each top-level function must short-circuit when GetProjectManager fails."""
     resolve = MagicMock()

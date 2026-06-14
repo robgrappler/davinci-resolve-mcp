@@ -50,6 +50,7 @@ def _project_with_timelines(timeline_names, current_timeline_name=None):
 # list_timelines
 # ---------------------------------------------------------------------------
 
+
 def test_list_timelines_not_connected():
     assert ops.list_timelines(None) == ["Error: Not connected to DaVinci Resolve"]
 
@@ -81,6 +82,7 @@ def test_list_timelines_empty_returns_info_marker():
 # get_current_timeline_info
 # ---------------------------------------------------------------------------
 
+
 def test_get_current_timeline_info_no_timeline():
     project, _ = _project_with_timelines([])
     resolve, _ = _resolve(project=project)
@@ -110,6 +112,7 @@ def test_get_current_timeline_info_returns_metadata():
 # ---------------------------------------------------------------------------
 # create_timeline
 # ---------------------------------------------------------------------------
+
 
 def test_create_timeline_rejects_empty_name():
     resolve, _ = _resolve(project=MagicMock())
@@ -153,6 +156,7 @@ def test_create_timeline_no_media_pool():
 # set_current_timeline
 # ---------------------------------------------------------------------------
 
+
 def test_set_current_timeline_not_found():
     project, _ = _project_with_timelines(["Main"])
     resolve, _ = _resolve(project=project)
@@ -161,10 +165,12 @@ def test_set_current_timeline_not_found():
 
 def test_set_current_timeline_success():
     project, timelines = _project_with_timelines(["A", "B"])
+
     # SetCurrentTimeline switches GetCurrentTimeline to point at the target
     def fake_set(tl):
         project.GetCurrentTimeline.return_value = tl
         return True
+
     project.SetCurrentTimeline.side_effect = fake_set
 
     resolve, _ = _resolve(project=project)
@@ -183,6 +189,7 @@ def test_set_current_timeline_verification_fails():
 # ---------------------------------------------------------------------------
 # delete_timeline
 # ---------------------------------------------------------------------------
+
 
 def test_delete_timeline_not_found():
     project, _ = _project_with_timelines(["Main"])
@@ -222,13 +229,17 @@ def test_delete_timeline_failure():
 # _frame_to_timecode
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("frame,fps,expected", [
-    (0, 24.0, "00:00:00:00"),
-    (24, 24.0, "00:00:01:00"),
-    (3601, 24.0, "00:02:30:01"),     # 3600 frames = 2:30 at 24fps, +1 frame
-    (86400, 24.0, "01:00:00:00"),    # 1 hour at 24fps
-    (12, 24.0, "00:00:00:12"),
-])
+
+@pytest.mark.parametrize(
+    "frame,fps,expected",
+    [
+        (0, 24.0, "00:00:00:00"),
+        (24, 24.0, "00:00:01:00"),
+        (3601, 24.0, "00:02:30:01"),  # 3600 frames = 2:30 at 24fps, +1 frame
+        (86400, 24.0, "01:00:00:00"),  # 1 hour at 24fps
+        (12, 24.0, "00:00:00:12"),
+    ],
+)
 def test_frame_to_timecode(frame, fps, expected):
     assert ops._frame_to_timecode(frame, fps) == expected
 
@@ -236,6 +247,7 @@ def test_frame_to_timecode(frame, fps, expected):
 # ---------------------------------------------------------------------------
 # set_current_frame
 # ---------------------------------------------------------------------------
+
 
 def test_set_current_frame_no_timeline():
     project, _ = _project_with_timelines([])

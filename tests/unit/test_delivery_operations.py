@@ -29,6 +29,7 @@ def _resolve(project=None, *, current_page="edit"):
 # start_render
 # ---------------------------------------------------------------------------
 
+
 def test_start_render_not_connected():
     assert ops.start_render(None) == {"error": "No connection to DaVinci Resolve"}
 
@@ -103,6 +104,7 @@ def test_start_render_skips_page_switch_when_already_on_deliver():
 # get_render_queue_status
 # ---------------------------------------------------------------------------
 
+
 def test_get_render_queue_status_not_connected():
     assert ops.get_render_queue_status(None) == {"error": "No connection to DaVinci Resolve"}
 
@@ -116,6 +118,7 @@ def test_get_render_queue_status_no_project_manager():
 # ---------------------------------------------------------------------------
 # clear_render_queue
 # ---------------------------------------------------------------------------
+
 
 def test_clear_render_queue_not_connected():
     assert ops.clear_render_queue(None) == {"error": "No connection to DaVinci Resolve"}
@@ -173,6 +176,7 @@ def test_clear_render_queue_failure():
 # validate_render_preset
 # ---------------------------------------------------------------------------
 
+
 def test_validate_render_preset_found_in_project():
     iface = MagicMock()
     iface.GetRenderPresetList.return_value = ["MyPreset"]
@@ -213,11 +217,14 @@ def test_validate_render_preset_handles_none_lists():
     assert presets == []
 
 
-@pytest.mark.parametrize("fn", [
-    ops.start_render,
-    ops.get_render_queue_status,
-    ops.clear_render_queue,
-])
+@pytest.mark.parametrize(
+    "fn",
+    [
+        ops.start_render,
+        ops.get_render_queue_status,
+        ops.clear_render_queue,
+    ],
+)
 def test_no_project_short_circuits(fn):
     resolve = _resolve(project=None)
     assert fn(resolve) == {"error": "No project is currently open"}

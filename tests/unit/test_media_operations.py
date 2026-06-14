@@ -19,6 +19,7 @@ from davinci_resolve_mcp.api import media_operations as ops
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 def _resolve(project=None):
     pm = MagicMock()
     pm.GetCurrentProject.return_value = project
@@ -38,10 +39,7 @@ def _folder(name="Master", clips=None, subfolders=None):
 def _clip(name="Clip", props=None):
     c = MagicMock()
     c.GetName.return_value = name
-    c.GetClipProperty.return_value = (
-        props if props is not None
-        else {"Type": "Video", "Duration": "100", "FPS": "24"}
-    )
+    c.GetClipProperty.return_value = props if props is not None else {"Type": "Video", "Duration": "100", "FPS": "24"}
     return c
 
 
@@ -61,6 +59,7 @@ def _build(*, root_clips=None, subfolders=None, timeline=None):
 # list_media_pool_clips
 # ---------------------------------------------------------------------------
 
+
 def test_list_media_pool_clips_not_connected():
     assert ops.list_media_pool_clips(None) == [{"error": "Not connected to DaVinci Resolve"}]
 
@@ -72,17 +71,13 @@ def test_list_media_pool_clips_no_project_manager():
 
 
 def test_list_media_pool_clips_no_project():
-    assert ops.list_media_pool_clips(_resolve(project=None)) == [
-        {"error": "No project currently open"}
-    ]
+    assert ops.list_media_pool_clips(_resolve(project=None)) == [{"error": "No project currently open"}]
 
 
 def test_list_media_pool_clips_no_media_pool():
     project = MagicMock()
     project.GetMediaPool.return_value = None
-    assert ops.list_media_pool_clips(_resolve(project=project)) == [
-        {"error": "Failed to get Media Pool"}
-    ]
+    assert ops.list_media_pool_clips(_resolve(project=project)) == [{"error": "Failed to get Media Pool"}]
 
 
 def test_list_media_pool_clips_no_root_folder():
@@ -90,9 +85,7 @@ def test_list_media_pool_clips_no_root_folder():
     mp.GetRootFolder.return_value = None
     project = MagicMock()
     project.GetMediaPool.return_value = mp
-    assert ops.list_media_pool_clips(_resolve(project=project)) == [
-        {"error": "Failed to get Root Folder"}
-    ]
+    assert ops.list_media_pool_clips(_resolve(project=project)) == [{"error": "Failed to get Root Folder"}]
 
 
 def test_list_media_pool_clips_empty_returns_info():
@@ -121,6 +114,7 @@ def test_list_media_pool_clips_returns_clip_info():
 # ---------------------------------------------------------------------------
 # import_media
 # ---------------------------------------------------------------------------
+
 
 def test_import_media_not_connected():
     assert ops.import_media(None, "/some/file.mp4") == "Error: Not connected to DaVinci Resolve"
@@ -156,6 +150,7 @@ def test_import_media_failure(tmp_path):
 # create_bin
 # ---------------------------------------------------------------------------
 
+
 def test_create_bin_not_connected():
     assert ops.create_bin(None, "Roughs") == "Error: Not connected to DaVinci Resolve"
 
@@ -190,6 +185,7 @@ def test_create_bin_failure():
 # list_bins
 # ---------------------------------------------------------------------------
 
+
 def test_list_bins_not_connected():
     assert ops.list_bins(None) == [{"error": "Not connected to DaVinci Resolve"}]
 
@@ -217,10 +213,9 @@ def test_list_bins_only_root_no_subfolders_returns_info():
 # get_bin_contents
 # ---------------------------------------------------------------------------
 
+
 def test_get_bin_contents_not_connected():
-    assert ops.get_bin_contents(None, "Roughs") == [
-        {"error": "Not connected to DaVinci Resolve"}
-    ]
+    assert ops.get_bin_contents(None, "Roughs") == [{"error": "Not connected to DaVinci Resolve"}]
 
 
 def test_get_bin_contents_master_returns_root_clips():
@@ -242,14 +237,13 @@ def test_get_bin_contents_finds_named_bin():
 
 def test_get_bin_contents_bin_not_found():
     resolve, _, _, _ = _build(subfolders=[])
-    assert ops.get_bin_contents(resolve, "Missing") == [
-        {"error": "Bin 'Missing' not found in Media Pool"}
-    ]
+    assert ops.get_bin_contents(resolve, "Missing") == [{"error": "Bin 'Missing' not found in Media Pool"}]
 
 
 # ---------------------------------------------------------------------------
 # format_clip_list  (pure helper — no Resolve interaction)
 # ---------------------------------------------------------------------------
+
 
 def test_format_clip_list_empty_list():
     assert ops.format_clip_list([], "Master") == [{"info": "No clips found in bin 'Master'"}]
@@ -275,14 +269,13 @@ def test_format_clip_list_returns_clip_fields():
 # list_timeline_clips
 # ---------------------------------------------------------------------------
 
+
 def test_list_timeline_clips_not_connected():
     assert ops.list_timeline_clips(None) == [{"error": "Not connected to DaVinci Resolve"}]
 
 
 def test_list_timeline_clips_no_project():
-    assert ops.list_timeline_clips(_resolve(project=None)) == [
-        {"error": "No project currently open"}
-    ]
+    assert ops.list_timeline_clips(_resolve(project=None)) == [{"error": "No project currently open"}]
 
 
 def test_list_timeline_clips_no_timeline():
@@ -305,9 +298,7 @@ def test_list_timeline_clips_returns_video_and_audio():
 
     timeline = MagicMock()
     timeline.GetTrackCount.side_effect = lambda t: 1 if t in ("video", "audio") else 0
-    timeline.GetItemListInTrack.side_effect = (
-        lambda t, _i: [vcl] if t == "video" else [acl]
-    )
+    timeline.GetItemListInTrack.side_effect = lambda t, _i: [vcl] if t == "video" else [acl]
 
     resolve, _, _, _ = _build(timeline=timeline)
     result = ops.list_timeline_clips(resolve)
@@ -321,23 +312,18 @@ def test_list_timeline_clips_returns_video_and_audio():
 # add_clip_to_timeline
 # ---------------------------------------------------------------------------
 
+
 def test_add_clip_to_timeline_not_connected():
-    assert ops.add_clip_to_timeline(None, "Clip.mp4") == (
-        "Error: Not connected to DaVinci Resolve"
-    )
+    assert ops.add_clip_to_timeline(None, "Clip.mp4") == ("Error: Not connected to DaVinci Resolve")
 
 
 def test_add_clip_to_timeline_no_project():
-    assert ops.add_clip_to_timeline(_resolve(project=None), "Clip.mp4") == (
-        "Error: No project currently open"
-    )
+    assert ops.add_clip_to_timeline(_resolve(project=None), "Clip.mp4") == ("Error: No project currently open")
 
 
 def test_add_clip_to_timeline_clip_not_found():
     resolve, _, _, _ = _build(root_clips=[])
-    assert ops.add_clip_to_timeline(resolve, "Missing.mp4") == (
-        "Error: Clip 'Missing.mp4' not found in Media Pool"
-    )
+    assert ops.add_clip_to_timeline(resolve, "Missing.mp4") == ("Error: Clip 'Missing.mp4' not found in Media Pool")
 
 
 def test_add_clip_to_timeline_no_current_timeline():
@@ -360,9 +346,7 @@ def test_add_clip_to_timeline_success():
     timeline = MagicMock()
     resolve, mp, _, _ = _build(root_clips=[clip], timeline=timeline)
     mp.AppendToTimeline.return_value = [MagicMock()]
-    assert ops.add_clip_to_timeline(resolve, "Promo.mp4") == (
-        "Successfully added clip 'Promo.mp4' to timeline"
-    )
+    assert ops.add_clip_to_timeline(resolve, "Promo.mp4") == ("Successfully added clip 'Promo.mp4' to timeline")
     mp.AppendToTimeline.assert_called_once()
 
 
@@ -370,66 +354,54 @@ def test_add_clip_to_timeline_failure():
     clip = _clip(name="Promo.mp4")
     resolve, mp, _, _ = _build(root_clips=[clip], timeline=MagicMock())
     mp.AppendToTimeline.return_value = []
-    assert ops.add_clip_to_timeline(resolve, "Promo.mp4") == (
-        "Failed to add clip 'Promo.mp4' to timeline"
-    )
+    assert ops.add_clip_to_timeline(resolve, "Promo.mp4") == ("Failed to add clip 'Promo.mp4' to timeline")
 
 
 # ---------------------------------------------------------------------------
 # delete_media
 # ---------------------------------------------------------------------------
 
+
 def test_delete_media_not_connected():
     assert ops.delete_media(None, "Clip.mp4") == "Error: Not connected to DaVinci Resolve"
 
 
 def test_delete_media_no_project():
-    assert ops.delete_media(_resolve(project=None), "Clip.mp4") == (
-        "Error: No project currently open"
-    )
+    assert ops.delete_media(_resolve(project=None), "Clip.mp4") == ("Error: No project currently open")
 
 
 def test_delete_media_clip_not_found():
     resolve, _, _, _ = _build(root_clips=[])
-    assert ops.delete_media(resolve, "Missing.mp4") == (
-        "Error: Clip 'Missing.mp4' not found in Media Pool"
-    )
+    assert ops.delete_media(resolve, "Missing.mp4") == ("Error: Clip 'Missing.mp4' not found in Media Pool")
 
 
 def test_delete_media_success():
     clip = _clip(name="Old.mp4")
     resolve, mp, _, _ = _build(root_clips=[clip])
     mp.DeleteClips.return_value = True
-    assert ops.delete_media(resolve, "Old.mp4") == (
-        "Successfully deleted clip 'Old.mp4' from Media Pool"
-    )
+    assert ops.delete_media(resolve, "Old.mp4") == ("Successfully deleted clip 'Old.mp4' from Media Pool")
 
 
 def test_delete_media_failure():
     clip = _clip(name="Old.mp4")
     resolve, mp, _, _ = _build(root_clips=[clip])
     mp.DeleteClips.return_value = False
-    assert ops.delete_media(resolve, "Old.mp4") == (
-        "Failed to delete clip 'Old.mp4' from Media Pool"
-    )
+    assert ops.delete_media(resolve, "Old.mp4") == ("Failed to delete clip 'Old.mp4' from Media Pool")
 
 
 # ---------------------------------------------------------------------------
 # move_media_to_bin
 # ---------------------------------------------------------------------------
 
+
 def test_move_media_to_bin_not_connected():
-    assert ops.move_media_to_bin(None, "Clip.mp4", "Finals") == (
-        "Error: Not connected to DaVinci Resolve"
-    )
+    assert ops.move_media_to_bin(None, "Clip.mp4", "Finals") == ("Error: Not connected to DaVinci Resolve")
 
 
 def test_move_media_to_bin_bin_not_found():
     clip = _clip(name="Clip.mp4")
     resolve, _, _, _ = _build(root_clips=[clip], subfolders=[])
-    assert ops.move_media_to_bin(resolve, "Clip.mp4", "NoSuchBin") == (
-        "Error: Bin 'NoSuchBin' not found in Media Pool"
-    )
+    assert ops.move_media_to_bin(resolve, "Clip.mp4", "NoSuchBin") == ("Error: Bin 'NoSuchBin' not found in Media Pool")
 
 
 def test_move_media_to_bin_clip_not_found():
@@ -463,6 +435,7 @@ def test_move_media_to_bin_to_master():
 # ---------------------------------------------------------------------------
 # auto_sync_audio
 # ---------------------------------------------------------------------------
+
 
 def test_auto_sync_audio_not_connected():
     assert ops.auto_sync_audio(None, ["a", "b"]).startswith("Error: Not connected")
@@ -499,14 +472,13 @@ def test_auto_sync_audio_success():
 # unlink_clips
 # ---------------------------------------------------------------------------
 
+
 def test_unlink_clips_not_connected():
     assert ops.unlink_clips(None, ["a"]).startswith("Error: Not connected")
 
 
 def test_unlink_clips_empty_list():
-    assert ops.unlink_clips(_resolve(project=MagicMock()), []) == (
-        "Error: No clip names provided for unlinking"
-    )
+    assert ops.unlink_clips(_resolve(project=MagicMock()), []) == ("Error: No clip names provided for unlinking")
 
 
 def test_unlink_clips_clip_not_found():
@@ -531,6 +503,7 @@ def test_unlink_clips_failure():
 # ---------------------------------------------------------------------------
 # relink_clips  (input validation)
 # ---------------------------------------------------------------------------
+
 
 def test_relink_clips_not_connected():
     assert ops.relink_clips(None, ["a"], folder_path="/tmp").startswith("Error: Not connected")
@@ -561,14 +534,13 @@ def test_relink_clips_mismatched_media_paths():
 # create_sub_clip
 # ---------------------------------------------------------------------------
 
+
 def test_create_sub_clip_not_connected():
     assert ops.create_sub_clip(None, "Clip", 0, 10) == "Error: Not connected to DaVinci Resolve"
 
 
 def test_create_sub_clip_empty_name():
-    assert ops.create_sub_clip(_resolve(project=MagicMock()), "", 0, 10) == (
-        "Error: Clip name cannot be empty"
-    )
+    assert ops.create_sub_clip(_resolve(project=MagicMock()), "", 0, 10) == ("Error: Clip name cannot be empty")
 
 
 def test_create_sub_clip_start_not_less_than_end():
@@ -585,9 +557,7 @@ def test_create_sub_clip_negative_start():
 
 def test_create_sub_clip_clip_not_found():
     resolve, _, _, _ = _build(root_clips=[])
-    assert ops.create_sub_clip(resolve, "Missing", 0, 10) == (
-        "Error: Source clip 'Missing' not found in Media Pool"
-    )
+    assert ops.create_sub_clip(resolve, "Missing", 0, 10) == ("Error: Source clip 'Missing' not found in Media Pool")
 
 
 def test_create_sub_clip_no_api_returns_helpful_error():
@@ -614,16 +584,13 @@ def test_create_sub_clip_success():
 # create_pseudo_subclip  (guards)
 # ---------------------------------------------------------------------------
 
+
 def test_create_pseudo_subclip_not_connected():
-    assert ops.create_pseudo_subclip(None, "Clip", 0, 10) == (
-        "Error: Not connected to DaVinci Resolve"
-    )
+    assert ops.create_pseudo_subclip(None, "Clip", 0, 10) == ("Error: Not connected to DaVinci Resolve")
 
 
 def test_create_pseudo_subclip_empty_name():
-    assert ops.create_pseudo_subclip(_resolve(project=MagicMock()), "", 0, 10) == (
-        "Error: Clip name cannot be empty"
-    )
+    assert ops.create_pseudo_subclip(_resolve(project=MagicMock()), "", 0, 10) == ("Error: Clip name cannot be empty")
 
 
 def test_create_pseudo_subclip_invalid_frames():
@@ -641,44 +608,46 @@ def test_create_pseudo_subclip_clip_not_found():
 # create_pseudo_subclip_compound  (guards)
 # ---------------------------------------------------------------------------
 
+
 def test_create_pseudo_subclip_compound_not_connected():
-    assert ops.create_pseudo_subclip_compound(None, "TL_Name", bin_name="Roughs").startswith(
-        "Error: Not connected"
-    )
+    assert ops.create_pseudo_subclip_compound(None, "TL_Name", bin_name="Roughs").startswith("Error: Not connected")
 
 
 def test_create_pseudo_subclip_compound_empty_timeline_name():
-    assert ops.create_pseudo_subclip_compound(
-        _resolve(project=MagicMock()), "", bin_name="Roughs"
-    ) == "Error: Timeline name cannot be empty"
+    assert (
+        ops.create_pseudo_subclip_compound(_resolve(project=MagicMock()), "", bin_name="Roughs")
+        == "Error: Timeline name cannot be empty"
+    )
 
 
 def test_create_pseudo_subclip_compound_no_bin():
-    assert ops.create_pseudo_subclip_compound(
-        _resolve(project=MagicMock()), "SomeTL"
-    ) == "Error: Bin name is required for pseudo-subclip compound creation"
+    assert (
+        ops.create_pseudo_subclip_compound(_resolve(project=MagicMock()), "SomeTL")
+        == "Error: Bin name is required for pseudo-subclip compound creation"
+    )
 
 
 # ---------------------------------------------------------------------------
 # normalize_latest_compound_clip
 # ---------------------------------------------------------------------------
 
+
 def test_normalize_latest_compound_clip_not_connected():
-    assert ops.normalize_latest_compound_clip(None, "Roughs", "NewName").startswith(
-        "Error: Not connected"
-    )
+    assert ops.normalize_latest_compound_clip(None, "Roughs", "NewName").startswith("Error: Not connected")
 
 
 def test_normalize_latest_compound_clip_empty_source_bin():
-    assert ops.normalize_latest_compound_clip(
-        _resolve(project=MagicMock()), "", "NewName"
-    ) == "Error: Source bin name cannot be empty"
+    assert (
+        ops.normalize_latest_compound_clip(_resolve(project=MagicMock()), "", "NewName")
+        == "Error: Source bin name cannot be empty"
+    )
 
 
 def test_normalize_latest_compound_clip_empty_new_name():
-    assert ops.normalize_latest_compound_clip(
-        _resolve(project=MagicMock()), "Roughs", ""
-    ) == "Error: New name for compound clip cannot be empty"
+    assert (
+        ops.normalize_latest_compound_clip(_resolve(project=MagicMock()), "Roughs", "")
+        == "Error: New name for compound clip cannot be empty"
+    )
 
 
 def test_normalize_latest_compound_clip_no_compound_clips():

@@ -50,6 +50,7 @@ def _resolve_with_video_items(items_per_track):
 # get_item_by_id
 # ---------------------------------------------------------------------------
 
+
 def test_get_item_by_id_returns_none_when_no_timeline():
     project = MagicMock()
     project.GetCurrentTimeline.return_value = None
@@ -92,11 +93,10 @@ def test_get_item_by_id_searches_all_video_tracks():
 # add_fusion_effect
 # ---------------------------------------------------------------------------
 
+
 def test_add_fusion_effect_item_not_found():
     resolve, _ = _resolve_with_video_items([[]])
-    assert ops.add_fusion_effect(resolve, "missing", "Vignette") == (
-        "Error: Timeline item 'missing' not found."
-    )
+    assert ops.add_fusion_effect(resolve, "missing", "Vignette") == ("Error: Timeline item 'missing' not found.")
 
 
 def test_add_fusion_effect_comp_creation_failure():
@@ -162,6 +162,7 @@ def test_add_fusion_effect_success_with_settings_and_wiring():
 # add_fusion_generator
 # ---------------------------------------------------------------------------
 
+
 def test_add_fusion_generator_no_timeline():
     project = MagicMock()
     project.GetCurrentTimeline.return_value = None
@@ -174,9 +175,7 @@ def test_add_fusion_generator_no_timeline():
 
 def test_add_fusion_generator_item_not_found():
     resolve, _ = _resolve_with_video_items([[]])
-    assert ops.add_fusion_generator(resolve, "missing", "TextPlus") == (
-        "Error: Timeline item missing not found"
-    )
+    assert ops.add_fusion_generator(resolve, "missing", "TextPlus") == ("Error: Timeline item missing not found")
 
 
 def test_add_fusion_generator_success_wires_via_merge():
@@ -225,6 +224,4 @@ def test_add_fusion_generator_no_media_out_returns_error():
     item = _fake_item(unique_id="ABC", fusion_comp=comp)
     resolve, _ = _resolve_with_video_items([[item]])
 
-    assert ops.add_fusion_generator(resolve, "ABC", "TextPlus") == (
-        "Error: Could not find MediaOut to wire generator"
-    )
+    assert ops.add_fusion_generator(resolve, "ABC", "TextPlus") == ("Error: Could not find MediaOut to wire generator")
