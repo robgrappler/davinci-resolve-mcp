@@ -24,8 +24,8 @@ UI state.
 Before calling any tool:
 
 1. **DaVinci Resolve must be running** on the same machine as the server.
-   Nothing will work if Resolve is closed.  Use `get_resolve_version` or the
-   resource `resolve://version` as a connectivity probe.
+   Nothing will work if Resolve is closed.  Read the resource
+   `resolve://version` as a connectivity probe.
 
 2. **A project must be open** in Resolve for the vast majority of tools.
    `list_projects` and `open_project` are the only tools that work without a
@@ -68,9 +68,7 @@ switch_page(page="deliver") # navigate before render tools
 
 **How to check current page:**
 ```
-get_current_page()          # returns e.g. "edit"
-# or read:
-resolve://current-page
+resolve://current-page      # returns e.g. "edit"
 ```
 
 Color tools (`apply_lut`, `set_color_wheel_param`, `add_node`, `get_current_node`,
@@ -154,9 +152,7 @@ switches, render jobs started, media imported, etc.).
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `get_resolve_version` | `()` | Connectivity probe. Returns version string. |
-| `get_current_page` | `()` | Returns page name string. |
-| `switch_page` | `(page: str)` | Valid values: `"media"`, `"edit"`, `"color"`, `"fusion"`, `"fairlight"`, `"deliver"`. |
+| `switch_page` | `(page: str)` | Valid values: `"media"`, `"cut"`, `"edit"`, `"color"`, `"fusion"`, `"fairlight"`, `"deliver"`. |
 | `debug_environment` | `()` | Returns env vars, Python paths, Resolve connection status. Use when the server seems broken. |
 | `quit_app` | `(force=False, save_project=True)` | Quits Resolve. `force=True` skips confirmation dialogs. |
 | `restart_app` | `(wait_seconds=5)` | Restarts Resolve. |
@@ -254,7 +250,7 @@ must be exact.
 | `auto_sync_audio` | `(clip_names: List[str], sync_method="waveform", append_mode=False, target_bin=None)` | Sync audio. `sync_method`: `"waveform"` or `"timecode"`. Requires ≥2 clips. |
 | `unlink_clips` | `(clip_names: List[str])` | Disconnect clips from their media files (offline). |
 | `relink_clips` | `(clip_names: List[str], media_paths=None, folder_path=None, recursive=False)` | Relink offline clips. Provide EITHER `media_paths` (one per clip) OR `folder_path`. |
-| `create_sub_clip` | `(clip_name, start_frame, end_frame, sub_clip_name=None, bin_name=None)` | Subclip from in/out frames. Falls back to `create_pseudo_subclip` internally if the API is not available. |
+| `create_sub_clip` | `(clip_name, start_frame, end_frame, sub_clip_name=None, bin_name=None)` | Subclip from in/out frames. Returns an error on Resolve builds that lack `CreateSubClip` — see limitations table. |
 | `link_proxy_media` | `(clip_name: str, proxy_file_path: str)` | Link a proxy media file to a clip. |
 | `unlink_proxy_media` | `(clip_name: str)` | Remove proxy link. |
 | `replace_clip` | `(clip_name: str, replacement_path: str)` | Replace source media for a clip. |
@@ -276,8 +272,8 @@ playhead on the intended clip.
 | `get_current_node` | `()` | Returns selected node info: `{clip_name, node_index, node_count, name, is_serial, properties}`. |
 | `add_node` | `(node_type="serial", label=None)` | Add a node. `node_type`: `"serial"`, `"parallel"`, `"layer"`. |
 | `apply_lut` | `(lut_path: str, node_index: int = None)` | Apply a LUT file (.cube, .3dl, .mga) to a node. `node_index=None` uses the currently selected node. Path must exist on disk. |
-| `set_color_wheel_param` | `(wheel: str, param: str, value: float, node_index: int = None)` | Adjust a colour wheel parameter. `wheel`: `"lift"`, `"gamma"`, `"gain"`, `"offset"`. `param`: `"red"`, `"green"`, `"blue"`, `"luma"` (or `"master"`). `value` range: typically −1.0 to +1.0. |
-| `copy_grade` | `(source_clip_name=None, target_clip_name=None, mode="full")` | Copy grade between clips. `mode`: `"full"`, `"node"`. |
+| `set_color_wheel_param` | `(wheel: str, param: str, value: float, node_index: int = None)` | Adjust a colour wheel parameter. `wheel`: `"lift"`, `"gamma"`, `"gain"`, `"offset"`. `param`: `"red"`, `"green"`, `"blue"`, `"master"` (Y/luma channel). `value` range: typically −1.0 to +1.0. |
+| `copy_grade` | `(source_clip_name=None, target_clip_name=None, mode="full")` | Copy grade between clips. `mode`: `"full"` (entire grade), `"current_node"` (selected node only), `"all_nodes"` (node graph). |
 | `apply_color_preset` | `(preset_id=None, preset_name=None, clip_name=None)` | Apply a saved preset by ID or name. |
 | `save_color_preset` | `(clip_name=None, preset_name=None, album_name="DaVinci Resolve")` | Save current grade as a preset. |
 | `delete_color_preset` | `(preset_id=None, preset_name=None, album_name=None)` | Delete a preset. |
@@ -291,8 +287,8 @@ switch_page(page="color")
 set_current_timeline(name="Main Edit")
 set_current_frame(frame=240)          # position on the target clip
 add_node(node_type="serial", label="Grade")
-set_color_wheel_param(wheel="lift", param="luma", value=-0.05)
-set_color_wheel_param(wheel="gain", param="luma", value=0.1)
+set_color_wheel_param(wheel="lift", param="master", value=-0.05)
+set_color_wheel_param(wheel="gain", param="master", value=0.1)
 apply_lut(lut_path="/Library/LUTs/Kodak5219.cube")
 save_project()
 ```
@@ -451,7 +447,7 @@ accomplish the task — prefer the typed tools.
 3. resolve://timeline-items              # find which frame the target clip is at
 4. set_current_frame(frame=120)          # position on the clip
 5. add_node(node_type="serial", label="Primary")
-6. set_color_wheel_param(wheel="gain", param="luma", value=0.08)
+6. set_color_wheel_param(wheel="gain", param="master", value=0.08)
 7. apply_lut(lut_path="/path/to/grade.cube")
 8. save_project()
 ```
@@ -492,7 +488,7 @@ accomplish the task — prefer the typed tools.
 | `import_media` with relative path | Fails silently or with OS error | Always use absolute paths |
 | `delete_timeline` on the only timeline | Explicitly refused | Create another timeline first |
 | Clip name contains special characters | Name-based search is exact-match only | Use `list_media_pool_clips` to discover exact names first |
-| `create_sub_clip` with unsupported Resolve build | Returns "not supported" error | Use `create_pseudo_subclip` which creates a dedicated timeline as a workaround |
+| `create_sub_clip` with unsupported Resolve build | Returns "not supported" error | No automatic fallback — tell the user their Resolve build lacks `CreateSubClip` and they must create the subclip manually in the Media Pool |
 | Keyframe tools | Must call `enable_keyframes` first | Always enable before adding keyframes |
 | Cloud project tools | Require a Blackmagic Cloud subscription | Tools return errors gracefully if not configured |
 | Linux | Resolve scripting API on Linux is experimental | Server works; some Resolve features may be absent |
@@ -524,7 +520,7 @@ If tools are failing unexpectedly, run through this list:
 1. debug_environment()           → check RESOLVE_SCRIPT_API, Python paths
 2. resolve://version             → is Resolve connected?
 3. resolve://current-project     → is a project open?
-4. get_current_page()            → are you on the right page?
+4. resolve://current-page        → are you on the right page?
 5. resolve://current-timeline    → is a timeline active?
 6. resolve://inspect/resolve     → does the scripting API expose expected methods?
 ```
