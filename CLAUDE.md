@@ -28,16 +28,16 @@ Before calling any tool:
    `resolve://version` as a connectivity probe.
 
 2. **A project must be open** in Resolve for the vast majority of tools.
-   `list_projects` and `open_project` are the only tools that work without a
-   currently open project.  Every other call that touches a timeline, media
-   pool, colour grade, or render queue will fail with
+   `resolve://projects` (resource) and `open_project` are the only calls that
+   work without a currently open project.  Every other call that touches a
+   timeline, media pool, colour grade, or render queue will fail with
    `"No project currently open"` if called when Resolve is on the Project
    Manager screen.
 
-3. **A timeline must be active** for timeline-scoped tools (`get_current_timeline`,
-   `set_current_frame`, `add_marker`, `razor_timeline`, `list_timeline_clips`,
-   timeline item tools, colour tools).  Confirm with the resource
-   `resolve://current-timeline` before using these tools.
+3. **A timeline must be active** for timeline-scoped tools (`set_current_frame`,
+   `add_marker`, `razor_timeline`, `list_timeline_clips`, timeline item tools,
+   colour tools).  Confirm with the resource `resolve://current-timeline`
+   before using these tools.
 
 4. **The correct Resolve page must be active** for page-gated tools (see
    below).  Resolve's scripting API silently ignores or errors on operations
@@ -71,13 +71,15 @@ switch_page(page="deliver") # navigate before render tools
 resolve://current-page      # returns e.g. "edit"
 ```
 
-Color tools (`apply_lut`, `set_color_wheel_param`, `add_node`, `get_current_node`,
-`copy_grade`, `apply_color_preset`, `save_color_preset`) **require the Color page**.
+Color tools (`apply_lut`, `set_color_wheel_param`, `add_node`, `copy_grade`,
+`apply_color_preset`, `save_color_preset`) **require the Color page**.
+The resource `resolve://color/current-node` also reads from the Color page.
 The handlers do attempt an auto-switch, but an explicit `switch_page` call before
 a batch of colour operations is cleaner and more reliable.
 
-Render/delivery tools (`add_to_render_queue`, `start_render`,
-`get_render_queue_status`) **require the Deliver page**.
+Render/delivery tools (`add_to_render_queue`, `start_render`) **require the
+Deliver page**.  The resource `resolve://delivery/render-queue/status` also
+reads from the Deliver page.
 
 Fusion tools (`add_fusion_effect`, `add_fusion_generator`) operate on timeline
 items by ID and do not require a page switch, but Resolve must be in Fusion page
@@ -167,19 +169,20 @@ All tools below require **no open project** to be fine except where noted.
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `list_projects` | `()` | Returns list of project names in current database folder. |
 | `open_project` | `(name: str)` | Opens project by exact name. Fails if project does not exist. |
 | `create_project` | `(name: str)` | Creates and opens a new project. Fails if name already exists. |
 | `save_project` | `()` | Saves the currently open project. Call this after bulk edits. |
 | `close_project` | `()` | Closes the current project (does NOT save — call `save_project` first). |
-| `get_project_settings` | `()` | Returns all project settings as dict. |
-| `get_project_setting` | `(setting_name: str)` | Get one setting value by key. |
 | `set_project_setting` | `(setting_name: str, setting_value: Any)` | Set one setting. Setting names match Resolve API keys (e.g. `"timelineFrameRate"`, `"videoMonitorUse10BitPrecision"`). |
 | `set_project_property_tool` | `(property_name: str, property_value: Any)` | Set project-level property (separate from settings). |
 
+Project-related **resources** (read-only): `resolve://projects` (list all project names),
+`resolve://current-project`, `resolve://project-settings` (all settings dict),
+`resolve://project-setting/{setting_name}` (single setting by key).
+
 **Pattern — open a project and verify:**
 ```
-list_projects()                        # confirm name
+resolve://projects                     # read resource to list names
 open_project(name="My Documentary")   # open it
 resolve://current-project              # verify it's active
 ```
@@ -192,16 +195,18 @@ Require an **open project**.
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `list_timelines` | `()` or `list_timelines_tool()` | Returns list of timeline name strings. |
-| `get_current_timeline` | `()` | Returns dict: `{name, framerate, resolution, start_timecode}`. |
+| `list_timelines_tool` | `()` | Returns list of timeline name strings. |
 | `set_current_timeline` | `(name: str)` | Switch active timeline by name. |
 | `create_timeline` | `(name: str)` | Creates a timeline with project default settings. |
 | `create_empty_timeline` | `(name: str, width=None, height=None, frame_rate=None, ...)` | Creates with custom settings. |
 | `delete_timeline` | `(name: str)` | Deletes timeline. Refuses to delete the only/current timeline — switch first. |
-| `get_timeline_tracks` | `(timeline_name: str = None)` | Returns track structure (count, names per type). |
 | `set_current_frame` | `(frame: int)` | Move the playhead to a frame number (0-based from timeline start). |
 | `add_marker` | `(frame: int = None, color: str = "Blue", note: str = "")` | Add a timeline marker. `frame=None` uses current playhead. Valid colors: `"Blue"`, `"Cyan"`, `"Green"`, `"Yellow"`, `"Red"`, `"Pink"`, `"Purple"`, `"Fuchsia"`, `"Rose"`, `"Lavender"`, `"Sky"`, `"Mint"`, `"Lemon"`, `"Sand"`, `"Cocoa"`, `"Cream"`. |
 | `razor_timeline` | `(frame: int = None)` | Cut all clips at `frame` (or current playhead if None). |
+
+Timeline-related **resources** (read-only): `resolve://timelines` (list all timeline names),
+`resolve://current-timeline` (name, FPS, resolution, timecode),
+`resolve://timeline-tracks/{timeline_name}` (track structure).
 
 ---
 
@@ -237,13 +242,10 @@ must be exact.
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `list_media_pool_clips` | `()` | All clips in root bin with type/duration/FPS. |
 | `list_media_pool_items` | `()` | Verbose flat listing including all subfolders. |
 | `import_media` | `(file_path: str)` | Absolute path to file on disk. Fails if path does not exist. |
 | `delete_media` | `(clip_name: str)` | Delete from media pool by exact name. |
 | `create_bin` | `(name: str)` | Create a sub-bin in the root folder. |
-| `list_media_pool_bins` | `()` | All bins (root + subfolders) with clip counts. |
-| `get_media_pool_bin_contents` | `(bin_name: str)` | Clips inside a specific bin. Use `"master"` for root. |
 | `move_media_to_bin` | `(clip_name: str, bin_name: str)` | Move clip to bin. Use `"master"` for root. |
 | `add_clip_to_timeline` | `(clip_name: str, timeline_name: str = None)` | Appends clip to current (or named) timeline. |
 | `create_timeline_from_clips` | `(timeline_name: str, clip_names: List[str])` | Creates a new timeline and populates it in clip order. |
@@ -256,7 +258,13 @@ must be exact.
 | `replace_clip` | `(clip_name: str, replacement_path: str)` | Replace source media for a clip. |
 | `transcribe_audio` | `(clip_name: str, language="en-US")` | AI transcription of a single clip. |
 | `transcribe_folder_audio` | `(folder_name: str, language="en-US")` | Transcribe all clips in a bin. |
+| `clear_transcription` | `(clip_name: str)` | Clear AI transcription from a single clip. |
+| `clear_folder_transcription` | `(folder_name: str)` | Clear transcriptions from all clips in a bin. |
 | `export_folder` | `(folder_name: str, export_path: str, export_type="DRB")` | Export a bin. Types: `"DRB"`, `"CSV"`, `"TSV"`. |
+
+Media pool **resources** (read-only): `resolve://media-pool-clips` (all clips in root bin),
+`resolve://media-pool-bins` (bin hierarchy with clip counts),
+`resolve://media-pool-bin/{bin_name}` (clips in a specific bin).
 
 ---
 
@@ -269,7 +277,6 @@ playhead on the intended clip.
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `get_current_node` | `()` | Returns selected node info: `{clip_name, node_index, node_count, name, is_serial, properties}`. |
 | `add_node` | `(node_type="serial", label=None)` | Add a node. `node_type`: `"serial"`, `"parallel"`, `"layer"`. |
 | `apply_lut` | `(lut_path: str, node_index: int = None)` | Apply a LUT file (.cube, .3dl, .mga) to a node. `node_index=None` uses the currently selected node. Path must exist on disk. |
 | `set_color_wheel_param` | `(wheel: str, param: str, value: float, node_index: int = None)` | Adjust a colour wheel parameter. `wheel`: `"lift"`, `"gamma"`, `"gain"`, `"offset"`. `param`: `"red"`, `"green"`, `"blue"`, `"master"` (Y/luma channel). `value` range: typically −1.0 to +1.0. |
@@ -278,8 +285,12 @@ playhead on the intended clip.
 | `save_color_preset` | `(clip_name=None, preset_name=None, album_name="DaVinci Resolve")` | Save current grade as a preset. |
 | `delete_color_preset` | `(preset_id=None, preset_name=None, album_name=None)` | Delete a preset. |
 | `create_color_preset_album` | `(album_name: str)` | Create a preset album. |
+| `delete_color_preset_album` | `(album_name: str)` | Delete a preset album. |
 | `export_lut` | `(clip_name=None, lut_path=None, format=None)` | Export grade as a LUT file. |
 | `export_all_powergrade_luts` | `(export_dir: str)` | Export all PowerGrade LUTs to a directory. |
+
+Colour **resources** (read-only): `resolve://color/current-node` (selected node info),
+`resolve://color/presets` (saved colour presets).
 
 **Example — push a colour correction to a specific clip:**
 ```
@@ -317,9 +328,11 @@ Keyframe tools take `timeline_item_id` from `get_timeline_items()`.
 |---|---|---|
 | `add_to_render_queue` | `(preset_name, timeline_name=None, use_in_out_range=False)` | Add a render job. `preset_name` must match a preset from `resolve://delivery/render-presets`. Omit `timeline_name` to use current timeline. |
 | `add_to_render_queue_json` | `(settings_json: str)` | Add a job with full custom settings as JSON string. Advanced use. |
-| `get_render_queue_status` | `()` | Returns list of all queued jobs with status/progress. |
 | `start_render` | `()` | Start rendering all queued jobs. Returns `{"success": True, "jobs_count": N}`. |
 | `clear_render_queue` | `()` | Remove all jobs. Stops rendering first if in progress. |
+
+Delivery **resources** (read-only): `resolve://delivery/render-queue/status` (queued jobs
+with status/progress), `resolve://delivery/render-presets` (available render presets).
 
 **Example — render the current timeline to YouTube 1080p:**
 ```
@@ -487,7 +500,7 @@ accomplish the task — prefer the typed tools.
 | `add_to_render_queue` with unknown preset | Returns preset-not-found error | Read `resolve://delivery/render-presets` first to get exact names |
 | `import_media` with relative path | Fails silently or with OS error | Always use absolute paths |
 | `delete_timeline` on the only timeline | Explicitly refused | Create another timeline first |
-| Clip name contains special characters | Name-based search is exact-match only | Use `list_media_pool_clips` to discover exact names first |
+| Clip name contains special characters | Name-based search is exact-match only | Read `resolve://media-pool-clips` to discover exact names first |
 | `create_sub_clip` with unsupported Resolve build | Returns "not supported" error | No automatic fallback — tell the user their Resolve build lacks `CreateSubClip` and they must create the subclip manually in the Media Pool |
 | Keyframe tools | Must call `enable_keyframes` first | Always enable before adding keyframes |
 | Cloud project tools | Require a Blackmagic Cloud subscription | Tools return errors gracefully if not configured |
