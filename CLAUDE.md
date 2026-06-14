@@ -499,22 +499,27 @@ accomplish the task — prefer the typed tools.
 
 ---
 
-## Memory MCP (recommended setup)
+## Memory MCP
 
-For long-running sessions, configure the **memory MCP server** in your
-project's `.claude/settings.json` so the agent can persist facts across
-context windows:
+A **memory MCP server with timestamps** is configured globally in this
+Claude Code installation at:
 
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    }
-  }
-}
 ```
+~/.claude/mcp-servers/mcp-server-memory-with-timestamps.mjs
+MEMORY_FILE_PATH=~/.claude/mcp-memory.json
+```
+
+This is available automatically in **local** Claude Code sessions.  Remote /
+web-based sessions run in isolated containers that cannot reach local MCP
+servers — use the desktop or CLI Claude Code to get memory access.
+
+**Use memory to persist across context windows:**
+
+- Active project name and database location
+- Timeline names, FPS, and resolution discovered this session
+- Clip names and timeline item IDs (expensive to rediscover)
+- Render preset names confirmed working
+- Any facts the user stated about their project structure
 
 Useful things to store: active project name, which timelines exist, clip
 names / IDs discovered this session, render job IDs.
