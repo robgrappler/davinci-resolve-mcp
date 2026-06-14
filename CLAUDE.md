@@ -195,7 +195,7 @@ Require an **open project**.
 
 | Tool | Signature | Notes |
 |---|---|---|
-| `list_timelines_tool` | `()` | Returns list of timeline name strings. |
+| `list_timelines_tool` | `()` | Returns list of timeline name strings. Prefer reading `resolve://timelines` resource instead — it's more reliable in cold sessions. |
 | `set_current_timeline` | `(name: str)` | Switch active timeline by name. |
 | `create_timeline` | `(name: str)` | Creates a timeline with project default settings. |
 | `create_empty_timeline` | `(name: str, width=None, height=None, frame_rate=None, ...)` | Creates with custom settings. |
