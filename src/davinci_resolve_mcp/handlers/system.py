@@ -14,12 +14,14 @@ resource = registry.resource
 tool = registry.tool
 resolve: Optional[Any] = None
 
+
 @resource("resolve://version")
 def get_resolve_version() -> str:
     """Get DaVinci Resolve version information."""
     if resolve is None:
         return "Error: Not connected to DaVinci Resolve"
     return f"{resolve.GetProductName()} {resolve.GetVersionString()}"
+
 
 @resource("resolve://current-page")
 def get_current_page() -> str:
@@ -28,27 +30,29 @@ def get_current_page() -> str:
         return "Error: Not connected to DaVinci Resolve"
     return resolve.GetCurrentPage()
 
+
 @tool()
 def switch_page(page: str) -> str:
     """Switch to a specific page in DaVinci Resolve.
-    
+
     Args:
         page: The page to switch to. Options: 'media', 'cut', 'edit', 'fusion', 'color', 'fairlight', 'deliver'
     """
     if resolve is None:
         return "Error: Not connected to DaVinci Resolve"
-    
-    valid_pages = ['media', 'cut', 'edit', 'fusion', 'color', 'fairlight', 'deliver']
+
+    valid_pages = ["media", "cut", "edit", "fusion", "color", "fairlight", "deliver"]
     page = page.lower()
-    
+
     if page not in valid_pages:
         return f"Error: Invalid page name. Must be one of: {', '.join(valid_pages)}"
-    
+
     result = resolve.OpenPage(page)
     if result:
         return f"Successfully switched to {page} page"
     else:
         return f"Failed to switch to {page} page"
+
 
 @tool()
 def debug_environment() -> Dict[str, Any]:
@@ -67,6 +71,7 @@ def debug_environment() -> Dict[str, Any]:
         "resolve_product": resolve.GetProductName() if resolve else None,
         "resolve_version": resolve.GetVersionString() if resolve else None,
     }
+
 
 def register(server: FastMCP, context: ResolveContext) -> None:
     """Register handlers defined in this module."""

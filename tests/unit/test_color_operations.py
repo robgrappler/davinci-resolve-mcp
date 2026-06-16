@@ -38,8 +38,8 @@ def _timeline_with_clip(clip, *, video_track_items=None):
     timeline.GetCurrentVideoItem.return_value = clip
     if video_track_items is not None:
         timeline.GetTrackCount.return_value = len(video_track_items)
-        timeline.GetItemListInTrack.side_effect = (
-            lambda track_type, track_idx: video_track_items[track_idx - 1]
+        timeline.GetItemListInTrack.side_effect = lambda track_type, track_idx: (
+            video_track_items[track_idx - 1]
             if track_type == "video" and 1 <= track_idx <= len(video_track_items)
             else []
         )
@@ -56,6 +56,7 @@ def _clip_with_grade(grade, name="Clip"):
 # ---------------------------------------------------------------------------
 # get_current_node
 # ---------------------------------------------------------------------------
+
 
 def test_get_current_node_not_connected():
     assert ops.get_current_node(None) == {"error": "Not connected to DaVinci Resolve"}
@@ -120,6 +121,7 @@ def test_get_current_node_success_returns_full_info():
 # apply_lut
 # ---------------------------------------------------------------------------
 
+
 def test_apply_lut_rejects_empty_path():
     resolve = _resolve(project=_project_with_timeline(MagicMock()))
     assert ops.apply_lut(resolve, "") == "Error: LUT path cannot be empty"
@@ -148,9 +150,7 @@ def test_apply_lut_rejects_invalid_node_index(tmp_path):
     timeline = _timeline_with_clip(clip)
     project = _project_with_timeline(timeline)
     resolve = _resolve(project=project, current_page="color")
-    assert ops.apply_lut(resolve, str(lut), node_index=5) == (
-        "Error: Invalid node index 5. Valid range: 1-3"
-    )
+    assert ops.apply_lut(resolve, str(lut), node_index=5) == ("Error: Invalid node index 5. Valid range: 1-3")
 
 
 def test_apply_lut_success(tmp_path):
@@ -187,6 +187,7 @@ def test_apply_lut_returns_failure_message(tmp_path):
 # add_node
 # ---------------------------------------------------------------------------
 
+
 def test_add_node_rejects_invalid_type():
     resolve = _resolve(project=_project_with_timeline(MagicMock()))
     result = ops.add_node(resolve, node_type="bogus")
@@ -209,6 +210,7 @@ def test_add_node_page_switch_failure():
 # ---------------------------------------------------------------------------
 # set_color_wheel_param
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("wheel", ["lift", "gamma", "gain", "offset"])
 def test_set_color_wheel_param_accepts_valid_wheels_at_validation(wheel):
@@ -250,6 +252,7 @@ def test_set_color_wheel_param_not_connected():
 # ensure_clip_selected
 # ---------------------------------------------------------------------------
 
+
 def test_ensure_clip_selected_uses_existing_selection():
     clip = MagicMock()
     clip.GetName.return_value = "AlreadySelected"
@@ -289,12 +292,15 @@ def test_ensure_clip_selected_returns_failure_when_no_clips():
     assert "Could not find any clips" in msg
 
 
-@pytest.mark.parametrize("fn,args", [
-    (ops.get_current_node, ()),
-    (ops.apply_lut, ("/tmp/x.cube",)),
-    (ops.add_node, ("serial",)),
-    (ops.set_color_wheel_param, ("lift", "red", 0.0)),
-])
+@pytest.mark.parametrize(
+    "fn,args",
+    [
+        (ops.get_current_node, ()),
+        (ops.apply_lut, ("/tmp/x.cube",)),
+        (ops.add_node, ("serial",)),
+        (ops.set_color_wheel_param, ("lift", "red", 0.0)),
+    ],
+)
 def test_no_project_short_circuits(fn, args, tmp_path):
     """All four entry points must short-circuit with no project."""
     # apply_lut additionally validates the LUT file before checking
