@@ -108,8 +108,11 @@ def set_current_timeline(name: str) -> dict:
 3. Put structured data (names, IDs, counts) in `data` or `context`, not embedded in `message`.
 4. For functions that currently return rich dicts (e.g. `debug_environment`, `inspect_custom_object`),
    the existing dict payload goes into `data`.
-5. The `api/` layer functions (called by handlers) do NOT need to be migrated to the envelope —
-   they are internal. Only `@tool()` and `@resource()` return values need the envelope.
+5. The `api/` layer functions are internal and do NOT need to return the envelope themselves.
+   However, **`@tool()` handlers that pass api results through directly must wrap them** — the
+   public surface must always emit the envelope. Example: `delivery.py` lines like
+   `return add_queue_func(resolve, ...)` must become
+   `result = add_queue_func(resolve, ...); return success_response(data=result) if result.get("success") else error_response("OPERATION_FAILED", result.get("error", "Unknown error"))`.
    Resources already return typed Python objects (lists, dicts); leave them as-is.
 
 ---
@@ -187,8 +190,8 @@ All tools return a uniform dict:
         "message": str,   # Human-readable description
         "details": Any    # Raw API result or exception string, if available
     },
-    "message": str,       # Human-readable summary (always present)
-    "context": dict       # Extra metadata e.g. {"project_name": "..."} (may be None)
+    "message": str | None, # Human-readable summary (present when passed; may be absent)
+    "context": dict | None # Extra metadata e.g. {"project_name": "..."} (may be absent)
 }
 ```
 
@@ -199,6 +202,7 @@ if not result["ok"]:
     print(result["error"]["code"], result["error"]["message"])
 else:
     data = result["data"]
+    msg = result.get("message")   # use .get() — field is optional
 ```
 
 **Common error codes:** `NOT_CONNECTED`, `NO_PROJECT`, `NO_TIMELINE`, `NOT_FOUND`,
@@ -209,9 +213,10 @@ else:
 
 ## Testing strategy
 
-1. Each batch: run `python -m pytest tests/unit/ -q` after the commit — must stay at 207 passed
-   (existing tests use mocks that return `MagicMock` values, not real envelopes, so they don't
-   break from the return-type change).
+1. Each batch: run `python -m pytest tests/unit/ -q` after the commit. **Existing handler tests
+   that assert string content (e.g. `"Successfully switched" in result`) WILL break** when those
+   tools are migrated — update them in the same commit as the tool migration. New assertion pattern:
+   `assert result["ok"] is True` / `assert result["error"]["code"] == "NOT_CONNECTED"`.
 2. Batch 0: new `test_response_envelope.py` adds ≥6 tests.
 3. Batch 12: new spot-check test in `test_tool_parity.py` validates envelope shape on sampled tools.
 4. Final: `ruff check src/ tests/unit/ && ruff format --check src/ tests/unit/` must pass.
