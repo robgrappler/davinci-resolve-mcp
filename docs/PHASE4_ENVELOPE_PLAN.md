@@ -140,7 +140,7 @@ Medium complexity: multiple early-exits, project-not-found errors.
 ### Batch 4 — `handlers/timeline_items.py` (7 tools) ✅
 Lots of string returns; straightforward once the pattern is clear.
 
-### Batch 5 — `handlers/media_pool.py` (12 tools)
+### Batch 5 — `handlers/media_pool.py` (12 tools) ✅
 Largest handler. `list_media_pool_items`, `import_media`, `create_bin`, etc.
 
 ### Batch 6 — `handlers/keyframes.py` (5 tools)

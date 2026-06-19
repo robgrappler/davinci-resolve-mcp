@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.keyframes")
 registry = HandlerRegistry()
@@ -162,7 +163,7 @@ def get_timeline_item_keyframes(timeline_item_id: str, property_name: str) -> Di
 
 
 @tool()
-def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: float) -> str:
+def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: float) -> Dict[str, Any]:
     """Add a keyframe at the specified frame for a timeline item property.
 
     Args:
@@ -172,19 +173,19 @@ def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: f
         value: Value to set at the keyframe
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Valid keyframeable properties
     video_properties = [
@@ -209,7 +210,7 @@ def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: f
     valid_properties = video_properties + audio_properties
 
     if property_name not in valid_properties:
-        return f"Error: Invalid property name. Must be one of: {', '.join(valid_properties)}"
+        return error_response("INVALID_ARG", f"Invalid property name. Must be one of: {', '.join(valid_properties)}")
 
     try:
         # Find the timeline item by ID
@@ -244,38 +245,48 @@ def add_keyframe(timeline_item_id: str, property_name: str, frame: int, value: f
                     break
 
         if not timeline_item:
-            return f"Error: Timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Timeline item with ID '{timeline_item_id}' not found")
 
         # Check if the specified property is valid for this item type
         if is_audio and property_name not in audio_properties:
-            return f"Error: Property '{property_name}' is not available for audio items"
+            return error_response("INVALID_ARG", f"Property '{property_name}' is not available for audio items")
 
         if not is_audio and property_name not in video_properties and timeline_item.GetType() != "Video":
-            return f"Error: Property '{property_name}' is not available for this item type"
+            return error_response("INVALID_ARG", f"Property '{property_name}' is not available for this item type")
 
         # Validate frame is within the item's range
         start_frame = timeline_item.GetStart()
         end_frame = timeline_item.GetEnd()
 
         if frame < start_frame or frame > end_frame:
-            return f"Error: Frame {frame} is outside the item's range ({start_frame} to {end_frame})"
+            return error_response(
+                "INVALID_ARG", f"Frame {frame} is outside the item's range ({start_frame} to {end_frame})"
+            )
 
         # Add the keyframe
         result = timeline_item.AddKeyframe(property_name, frame, value)
 
         if result:
-            return f"Successfully added keyframe for {property_name} at frame {frame} with value {value}"
+            return success_response(
+                message=f"Added keyframe for {property_name} at frame {frame} with value {value}",
+                context={
+                    "timeline_item_id": timeline_item_id,
+                    "property_name": property_name,
+                    "frame": frame,
+                    "value": value,
+                },
+            )
         else:
-            return f"Failed to add keyframe for {property_name} at frame {frame}"
+            return error_response("OPERATION_FAILED", f"Failed to add keyframe for {property_name} at frame {frame}")
 
     except Exception as e:
-        return f"Error adding keyframe: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error adding keyframe: {str(e)}")
 
 
 @tool()
 def modify_keyframe(
     timeline_item_id: str, property_name: str, frame: int, new_value: float = None, new_frame: int = None
-) -> str:
+) -> Dict[str, Any]:
     """Modify an existing keyframe by changing its value or frame position.
 
     Args:
@@ -286,22 +297,22 @@ def modify_keyframe(
         new_frame: Optional new frame position for the keyframe
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     if new_value is None and new_frame is None:
-        return "Error: Must specify at least one of new_value or new_frame"
+        return error_response("INVALID_ARG", "Must specify at least one of new_value or new_frame")
 
     try:
         # Find the timeline item by ID
@@ -334,12 +345,12 @@ def modify_keyframe(
                     break
 
         if not timeline_item:
-            return f"Error: Timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Timeline item with ID '{timeline_item_id}' not found")
 
         # Check if the property has keyframes
         keyframe_count = timeline_item.GetKeyframeCount(property_name)
         if keyframe_count == 0:
-            return f"Error: No keyframes found for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframes found for property '{property_name}'")
 
         # Find the keyframe at the specified frame
         keyframe_index = -1
@@ -350,7 +361,7 @@ def modify_keyframe(
                 break
 
         if keyframe_index == -1:
-            return f"Error: No keyframe found at frame {frame} for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframe found at frame {frame} for property '{property_name}'")
 
         if new_frame is not None:
             # Check if new frame is within the item's range
@@ -358,7 +369,9 @@ def modify_keyframe(
             end_frame = timeline_item.GetEnd()
 
             if new_frame < start_frame or new_frame > end_frame:
-                return f"Error: New frame {new_frame} is outside the item's range ({start_frame} to {end_frame})"
+                return error_response(
+                    "INVALID_ARG", f"New frame {new_frame} is outside the item's range ({start_frame} to {end_frame})"
+                )
 
             # Delete the keyframe at the current frame
             current_value = timeline_item.GetPropertyAtKeyframeIndex(property_name, keyframe_index)
@@ -369,9 +382,17 @@ def modify_keyframe(
             result = timeline_item.AddKeyframe(property_name, new_frame, value)
 
             if result:
-                return f"Successfully moved keyframe for {property_name} from frame {frame} to frame {new_frame}"
+                return success_response(
+                    message=f"Moved keyframe for {property_name} from frame {frame} to frame {new_frame}",
+                    context={
+                        "timeline_item_id": timeline_item_id,
+                        "property_name": property_name,
+                        "old_frame": frame,
+                        "new_frame": new_frame,
+                    },
+                )
             else:
-                return f"Failed to move keyframe for {property_name}"
+                return error_response("OPERATION_FAILED", f"Failed to move keyframe for {property_name}")
         else:
             # Only changing the value, not the frame position
             # We need to delete and re-add the keyframe with the new value
@@ -379,16 +400,26 @@ def modify_keyframe(
             result = timeline_item.AddKeyframe(property_name, frame, new_value)
 
             if result:
-                return f"Successfully updated keyframe value for {property_name} at frame {frame} to {new_value}"
+                return success_response(
+                    message=f"Updated keyframe value for {property_name} at frame {frame} to {new_value}",
+                    context={
+                        "timeline_item_id": timeline_item_id,
+                        "property_name": property_name,
+                        "frame": frame,
+                        "new_value": new_value,
+                    },
+                )
             else:
-                return f"Failed to update keyframe value for {property_name} at frame {frame}"
+                return error_response(
+                    "OPERATION_FAILED", f"Failed to update keyframe value for {property_name} at frame {frame}"
+                )
 
     except Exception as e:
-        return f"Error modifying keyframe: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error modifying keyframe: {str(e)}")
 
 
 @tool()
-def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> str:
+def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> Dict[str, Any]:
     """Delete a keyframe at the specified frame for a timeline item property.
 
     Args:
@@ -397,19 +428,19 @@ def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> st
         frame: Frame position of the keyframe to delete
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     try:
         # Find the timeline item by ID
@@ -442,12 +473,12 @@ def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> st
                     break
 
         if not timeline_item:
-            return f"Error: Timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Timeline item with ID '{timeline_item_id}' not found")
 
         # Check if the property has keyframes
         keyframe_count = timeline_item.GetKeyframeCount(property_name)
         if keyframe_count == 0:
-            return f"Error: No keyframes found for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframes found for property '{property_name}'")
 
         # Check if there's a keyframe at the specified frame
         keyframe_exists = False
@@ -458,22 +489,27 @@ def delete_keyframe(timeline_item_id: str, property_name: str, frame: int) -> st
                 break
 
         if not keyframe_exists:
-            return f"Error: No keyframe found at frame {frame} for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframe found at frame {frame} for property '{property_name}'")
 
         # Delete the keyframe
         result = timeline_item.DeleteKeyframe(property_name, frame)
 
         if result:
-            return f"Successfully deleted keyframe for {property_name} at frame {frame}"
+            return success_response(
+                message=f"Deleted keyframe for {property_name} at frame {frame}",
+                context={"timeline_item_id": timeline_item_id, "property_name": property_name, "frame": frame},
+            )
         else:
-            return f"Failed to delete keyframe for {property_name} at frame {frame}"
+            return error_response("OPERATION_FAILED", f"Failed to delete keyframe for {property_name} at frame {frame}")
 
     except Exception as e:
-        return f"Error deleting keyframe: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error deleting keyframe: {str(e)}")
 
 
 @tool()
-def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame: int, interpolation_type: str) -> str:
+def set_keyframe_interpolation(
+    timeline_item_id: str, property_name: str, frame: int, interpolation_type: str
+) -> Dict[str, Any]:
     """Set the interpolation type for a keyframe.
 
     Args:
@@ -483,24 +519,26 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
         interpolation_type: Type of interpolation. Options: 'Linear', 'Bezier', 'Ease-In', 'Ease-Out'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate interpolation type
     valid_interpolation_types = ["Linear", "Bezier", "Ease-In", "Ease-Out"]
     if interpolation_type not in valid_interpolation_types:
-        return f"Error: Invalid interpolation type. Must be one of: {', '.join(valid_interpolation_types)}"
+        return error_response(
+            "INVALID_ARG", f"Invalid interpolation type. Must be one of: {', '.join(valid_interpolation_types)}"
+        )
 
     try:
         # Find the timeline item by ID
@@ -533,12 +571,12 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
                     break
 
         if not timeline_item:
-            return f"Error: Timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Timeline item with ID '{timeline_item_id}' not found")
 
         # Check if the property has keyframes
         keyframe_count = timeline_item.GetKeyframeCount(property_name)
         if keyframe_count == 0:
-            return f"Error: No keyframes found for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframes found for property '{property_name}'")
 
         # Check if there's a keyframe at the specified frame
         keyframe_exists = False
@@ -549,7 +587,7 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
                 break
 
         if not keyframe_exists:
-            return f"Error: No keyframe found at frame {frame} for property '{property_name}'"
+            return error_response("NOT_FOUND", f"No keyframe found at frame {frame} for property '{property_name}'")
 
         # Set the interpolation type
         interpolation_map = {"Linear": 0, "Bezier": 1, "Ease-In": 2, "Ease-Out": 3}
@@ -569,18 +607,26 @@ def set_keyframe_interpolation(timeline_item_id: str, property_name: str, frame:
         result = timeline_item.AddKeyframe(property_name, frame, value, interpolation_map[interpolation_type])
 
         if result:
-            return (
-                f"Successfully set interpolation for {property_name} keyframe at frame {frame} to {interpolation_type}"
+            return success_response(
+                message=f"Set interpolation for {property_name} keyframe at frame {frame} to {interpolation_type}",
+                context={
+                    "timeline_item_id": timeline_item_id,
+                    "property_name": property_name,
+                    "frame": frame,
+                    "interpolation_type": interpolation_type,
+                },
             )
         else:
-            return f"Failed to set interpolation for {property_name} keyframe at frame {frame}"
+            return error_response(
+                "OPERATION_FAILED", f"Failed to set interpolation for {property_name} keyframe at frame {frame}"
+            )
 
     except Exception as e:
-        return f"Error setting keyframe interpolation: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting keyframe interpolation: {str(e)}")
 
 
 @tool()
-def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
+def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> Dict[str, Any]:
     """Enable keyframe mode for a timeline item.
 
     Args:
@@ -588,24 +634,26 @@ def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
         keyframe_mode: Keyframe mode to enable. Options: 'All', 'Color', 'Sizing'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate keyframe mode
     valid_keyframe_modes = ["All", "Color", "Sizing"]
     if keyframe_mode not in valid_keyframe_modes:
-        return f"Error: Invalid keyframe mode. Must be one of: {', '.join(valid_keyframe_modes)}"
+        return error_response(
+            "INVALID_ARG", f"Invalid keyframe mode. Must be one of: {', '.join(valid_keyframe_modes)}"
+        )
 
     try:
         # Find the timeline item by ID
@@ -625,10 +673,10 @@ def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
         if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
+            return error_response("INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' is not a video item")
 
         # Set the keyframe mode
         keyframe_mode_map = {"All": 0, "Color": 1, "Sizing": 2}
@@ -636,12 +684,18 @@ def enable_keyframes(timeline_item_id: str, keyframe_mode: str = "All") -> str:
         result = timeline_item.SetProperty("KeyframeMode", keyframe_mode_map[keyframe_mode])
 
         if result:
-            return f"Successfully enabled {keyframe_mode} keyframe mode for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Enabled {keyframe_mode} keyframe mode for timeline item '{timeline_item.GetName()}'",
+                context={"timeline_item_id": timeline_item_id, "keyframe_mode": keyframe_mode},
+            )
         else:
-            return f"Failed to enable {keyframe_mode} keyframe mode for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to enable {keyframe_mode} keyframe mode for timeline item '{timeline_item.GetName()}'",
+            )
 
     except Exception as e:
-        return f"Error enabling keyframe mode: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error enabling keyframe mode: {str(e)}")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:
