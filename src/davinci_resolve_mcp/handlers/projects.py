@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.projects")
 registry = HandlerRegistry()
@@ -96,7 +97,7 @@ def get_project_setting(setting_name: str) -> Dict[str, Any]:
 
 
 @tool()
-def set_project_setting(setting_name: str, setting_value: Any) -> str:
+def set_project_setting(setting_name: str, setting_value: Any) -> Dict[str, Any]:
     """Set a project setting to the specified value.
 
     Args:
@@ -104,15 +105,15 @@ def set_project_setting(setting_name: str, setting_value: Any) -> str:
         setting_value: The new value for the setting (can be string, integer, float, or boolean)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     try:
         # Convert setting_value to string if it's not already
@@ -128,13 +129,19 @@ def set_project_setting(setting_name: str, setting_value: Any) -> str:
                 numeric_value = int(setting_value)
                 # Try with numeric value first
                 if current_project.SetSetting(setting_name, numeric_value):
-                    return f"Successfully set project setting '{setting_name}' to numeric value {numeric_value}"
+                    return success_response(
+                        message=f"Set project setting '{setting_name}' to numeric value {numeric_value}",
+                        context={"setting_name": setting_name, "setting_value": numeric_value},
+                    )
             elif "." in setting_value and setting_value.replace(".", "", 1).replace("-", "", 1).isdigit():
                 # It's a float
                 numeric_value = float(setting_value)
                 # Try with float value
                 if current_project.SetSetting(setting_name, numeric_value):
-                    return f"Successfully set project setting '{setting_name}' to numeric value {numeric_value}"
+                    return success_response(
+                        message=f"Set project setting '{setting_name}' to numeric value {numeric_value}",
+                        context={"setting_name": setting_name, "setting_value": numeric_value},
+                    )
         except (ValueError, TypeError):
             # Not a number or conversion failed, continue with string value
             pass
@@ -142,87 +149,90 @@ def set_project_setting(setting_name: str, setting_value: Any) -> str:
         # Fall back to string value if numeric didn't work or wasn't applicable
         result = current_project.SetSetting(setting_name, setting_value)
         if result:
-            return f"Successfully set project setting '{setting_name}' to '{setting_value}'"
+            return success_response(
+                message=f"Set project setting '{setting_name}' to '{setting_value}'",
+                context={"setting_name": setting_name, "setting_value": setting_value},
+            )
         else:
-            return f"Failed to set project setting '{setting_name}'"
+            return error_response("OPERATION_FAILED", f"Failed to set project setting '{setting_name}'")
     except Exception as e:
-        return f"Error setting project setting: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting project setting: {str(e)}")
 
 
 @tool()
-def open_project(name: str) -> str:
+def open_project(name: str) -> Dict[str, Any]:
     """Open a project by name.
 
     Args:
         name: The name of the project to open
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not name:
-        return "Error: Project name cannot be empty"
+        return error_response("INVALID_ARG", "Project name cannot be empty")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     # Check if project exists
     projects = project_manager.GetProjectListInCurrentFolder()
     if name not in projects:
-        return f"Error: Project '{name}' not found. Available projects: {', '.join(projects)}"
+        return error_response("NOT_FOUND", f"Project '{name}' not found", details={"available_projects": projects})
 
     result = project_manager.LoadProject(name)
     if result:
-        return f"Successfully opened project '{name}'"
+        return success_response(message=f"Opened project '{name}'", context={"project_name": name})
     else:
-        return f"Failed to open project '{name}'"
+        return error_response("OPERATION_FAILED", f"Failed to open project '{name}'")
 
 
 @tool()
-def create_project(name: str) -> str:
+def create_project(name: str) -> Dict[str, Any]:
     """Create a new project with the given name.
 
     Args:
         name: The name for the new project
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not name:
-        return "Error: Project name cannot be empty"
+        return error_response("INVALID_ARG", "Project name cannot be empty")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     # Check if project already exists
     projects = project_manager.GetProjectListInCurrentFolder()
     if name in projects:
-        return f"Error: Project '{name}' already exists"
+        return error_response("OPERATION_FAILED", f"Project '{name}' already exists", context={"project_name": name})
 
     result = project_manager.CreateProject(name)
     if result:
-        return f"Successfully created project '{name}'"
+        return success_response(message=f"Created project '{name}'", context={"project_name": name})
     else:
-        return f"Failed to create project '{name}'"
+        return error_response("OPERATION_FAILED", f"Failed to create project '{name}'")
 
 
 @tool()
-def save_project() -> str:
+def save_project() -> Dict[str, Any]:
     """Save the current project.
 
     Note that DaVinci Resolve typically auto-saves projects, so this may not be necessary.
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     project_name = current_project.GetName()
     success = False
@@ -282,31 +292,34 @@ def save_project() -> str:
 
         # If all else fails, rely on auto-save
         if not success:
-            return f"Automatic save likely in effect for project '{project_name}'. Manual save attempts failed: {error_message if error_message else 'Unknown error'}"
+            return success_response(
+                message=f"Automatic save likely in effect for project '{project_name}'. Manual save attempts failed: {error_message if error_message else 'Unknown error'}",
+                context={"project_name": project_name},
+            )
         else:
-            return f"Successfully saved project '{project_name}'"
+            return success_response(message=f"Saved project '{project_name}'", context={"project_name": project_name})
 
     except Exception as e:
         logger.error(f"Error saving project: {str(e)}")
-        return f"Error saving project: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error saving project: {str(e)}")
 
 
 @tool()
-def close_project() -> str:
+def close_project() -> Dict[str, Any]:
     """Close the current project.
 
     This closes the current project without saving. If you need to save, use the save_project function first.
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     project_name = current_project.GetName()
 
@@ -315,13 +328,13 @@ def close_project() -> str:
         result = project_manager.CloseProject(current_project)
         if result:
             logger.info(f"Project '{project_name}' closed successfully")
-            return f"Successfully closed project '{project_name}'"
+            return success_response(message=f"Closed project '{project_name}'", context={"project_name": project_name})
         else:
             logger.error(f"Failed to close project '{project_name}'")
-            return f"Failed to close project '{project_name}'"
+            return error_response("OPERATION_FAILED", f"Failed to close project '{project_name}'")
     except Exception as e:
         logger.error(f"Error closing project: {str(e)}")
-        return f"Error closing project: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error closing project: {str(e)}")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:
