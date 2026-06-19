@@ -134,10 +134,10 @@ Small files, easy wins. Establish the pattern.
 ### Batch 2 — `handlers/projects.py` (5 tools)
 Medium complexity: multiple early-exits, project-not-found errors.
 
-### Batch 3 — `handlers/timelines.py` (7 tools)
+### Batch 3 — `handlers/timelines.py` (7 tools) ✅
 `set_current_timeline`, `create_timeline`, `delete_timeline`, `add_marker`, etc.
 
-### Batch 4 — `handlers/timeline_items.py` (7 tools)
+### Batch 4 — `handlers/timeline_items.py` (7 tools) ✅
 Lots of string returns; straightforward once the pattern is clear.
 
 ### Batch 5 — `handlers/media_pool.py` (12 tools)
