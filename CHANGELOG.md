@@ -1,6 +1,14 @@
 # Changelog
 
-All notable changes to the DaVinci Resolve MCP Server project will be documented in this file.
+All notable changes to this project will be documented in this file.
+
+## [2.0.0] - Unreleased
+
+### Changed
+- **BREAKING**: All `@tool()` functions now return a uniform response envelope `{ok, data, error, message, context}` instead of raw strings or ad-hoc dicts. This enables pipeline-oriented clients to check `result["ok"]` and parse errors uniformly. See `docs/PHASE4_ENVELOPE_PLAN.md` for migration details.
+
+### Added
+- `warn_response()` helper in `utils/response.py` for soft no-op scenarios (e.g., "queue already empty")
 
 ## [Unreleased]
 
