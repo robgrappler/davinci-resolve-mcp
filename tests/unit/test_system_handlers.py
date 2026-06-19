@@ -70,5 +70,26 @@ def test_version_resource_reports_version():
 def test_switch_page_tool_updates_current_page():
     server, fake_resolve = setup_server()
     result = server.tools["switch_page"]("color")
-    assert "Successfully switched" in result
+    assert isinstance(result, dict)
+    assert result["ok"] is True
+    assert result["context"]["page"] == "color"
     assert fake_resolve.GetCurrentPage() == "color"
+
+
+def test_switch_page_invalid_returns_error():
+    server, fake_resolve = setup_server()
+    result = server.tools["switch_page"]("bogus")
+    assert isinstance(result, dict)
+    assert result["ok"] is False
+    assert result["error"]["code"] == "INVALID_ARG"
+    # Page should not have changed
+    assert fake_resolve.GetCurrentPage() == "edit"
+
+
+def test_debug_environment_returns_envelope():
+    server, _ = setup_server()
+    result = server.tools["debug_environment"]()
+    assert isinstance(result, dict)
+    assert result["ok"] is True
+    assert "python_version" in result["data"]
+    assert "resolve_connected" in result["data"]
