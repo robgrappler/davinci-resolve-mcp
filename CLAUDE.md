@@ -87,31 +87,36 @@ or Edit page for the comp to be accessible.
 
 ---
 
-## Error shape — two formats exist
+## Response envelope
 
-Tools return errors in two shapes depending on the domain.  Always check for
-both:
+All tools return a uniform dict:
 
 ```python
-# Dict format (most common — project/timeline/color/delivery tools):
-{"error": "No project currently open"}
-{"error": "Not on Color page. Current page is: edit"}
-
-# String format (media pool, fusion, some delivery tools):
-"Error: Clip 'MyClip.mp4' not found in Media Pool"
-"Error: Timeline item 'ID-1' not found."
+{
+    "ok": bool,           # True = success, False = failure
+    "data": Any,          # Payload on success; None on error
+    "error": {            # None on success; present on error
+        "code": str,      # Machine-readable e.g. "NOT_CONNECTED"
+        "message": str,   # Human-readable description
+        "details": Any    # Raw API result or exception string, if available
+    },
+    "message": str | None, # Human-readable summary (present when passed; may be absent)
+    "context": dict | None # Extra metadata e.g. {"project_name": "..."} (may be absent)
+}
 ```
 
-A return value that is a non-empty string **beginning with `"Error:"` or
-containing `"Failed"` is always a failure**, regardless of HTTP status.
+**Checking success:**
+```python
+result = call_tool(...)
+if not result["ok"]:
+    print(result["error"]["code"], result["error"]["message"])
+else:
+    data = result["data"]
+    msg = result.get("message")   # use .get() — field is optional
+```
 
-A dict return with key `"error"` is always a failure.
-
-A dict return with key `"warning"` (e.g. render queue already empty) is a
-soft failure — the requested state already holds.
-
-A dict return with key `"success": True` or a string **not** beginning with
-`"Error"` is a success.
+**Common error codes:** `NOT_CONNECTED`, `NO_PROJECT`, `NO_TIMELINE`, `NOT_FOUND`,
+`INVALID_ARG`, `OPERATION_FAILED`, `WRONG_PAGE`, `UNSUPPORTED`.
 
 ---
 

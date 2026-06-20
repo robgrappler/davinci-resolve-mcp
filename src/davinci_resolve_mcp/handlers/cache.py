@@ -71,7 +71,7 @@ def set_cache_mode(mode: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -115,7 +115,7 @@ def set_optimized_media_mode(mode: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -163,7 +163,7 @@ def set_proxy_mode(mode: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -207,7 +207,7 @@ def set_proxy_quality(quality: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -255,7 +255,7 @@ def set_cache_path(path_type: str, path: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -312,7 +312,7 @@ def generate_optimized_media(clip_names: List[str] = None) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -405,7 +405,7 @@ def delete_optimized_media(clip_names: List[str] = None) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:

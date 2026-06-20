@@ -11,7 +11,7 @@ from davinci_resolve_mcp.adapters.resolve import ResolveAdapter
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers import register_all
 
-VERSION = "1.3.8"
+VERSION = "2.0.0"
 
 
 def create_server(*, logger: Optional[logging.Logger] = None) -> FastMCP:

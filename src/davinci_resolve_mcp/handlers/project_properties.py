@@ -85,7 +85,7 @@ def set_project_property_tool(property_name: str, property_value: Any) -> Dict[s
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -141,7 +141,7 @@ def set_timeline_format_tool(width: int, height: int, frame_rate: float, interla
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -196,7 +196,7 @@ def set_superscale_settings_tool(enabled: bool, quality: int = 0) -> Dict[str, A
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -251,7 +251,7 @@ def set_color_science_mode_tool(mode: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -283,7 +283,7 @@ def set_color_space_tool(color_space: str, gamma: str = None) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:

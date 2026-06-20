@@ -11,6 +11,7 @@ from davinci_resolve_mcp.utils.object_inspection import (
     inspect_object,
     print_object_help,
 )
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.inspection")
 registry = HandlerRegistry()
@@ -101,7 +102,7 @@ def inspect_current_timeline_object() -> Dict[str, Any]:
 
 
 @tool()
-def object_help(object_type: str) -> str:
+def object_help(object_type: str) -> Dict[str, Any]:
     """
     Get human-readable help for a DaVinci Resolve API object.
 
@@ -110,7 +111,10 @@ def object_help(object_type: str) -> str:
                      'project', 'media_pool', 'timeline', 'media_storage')
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     # Map object type string to actual object
     obj = None
@@ -138,13 +142,18 @@ def object_help(object_type: str) -> str:
     elif object_type == "media_storage":
         obj = resolve.GetMediaStorage()
     else:
-        return f"Error: Unknown object type '{object_type}'"
+        return error_response(
+            "INVALID_ARG", f"Unknown object type '{object_type}'", context={"object_type": object_type}
+        )
 
     if obj is None:
-        return f"Error: Failed to get {object_type} object"
+        return error_response(
+            "OPERATION_FAILED", f"Failed to get {object_type} object", context={"object_type": object_type}
+        )
 
     # Generate and return help text
-    return print_object_help(obj)
+    help_text = print_object_help(obj)
+    return success_response({"object_type": object_type, "help": help_text}, message=f"Help for {object_type}")
 
 
 @tool()
@@ -156,7 +165,10 @@ def inspect_custom_object(object_path: str) -> Dict[str, Any]:
         object_path: Path to the object using dot notation (e.g., 'resolve.GetMediaStorage()')
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve"}
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     try:
         # Start with resolve object
@@ -177,18 +189,31 @@ def inspect_custom_object(object_path: str) -> Dict[str, Any]:
                 if hasattr(obj, method_name) and callable(getattr(obj, method_name)):
                     obj = getattr(obj, method_name)()
                 else:
-                    return {"error": f"Method '{method_name}' not found or not callable"}
+                    return error_response(
+                        "NOT_FOUND",
+                        f"Method '{method_name}' not found or not callable",
+                        context={"object_path": object_path, "method": method_name},
+                    )
             else:
                 # It's an attribute access
                 if hasattr(obj, part):
                     obj = getattr(obj, part)
                 else:
-                    return {"error": f"Attribute '{part}' not found"}
+                    return error_response(
+                        "NOT_FOUND",
+                        f"Attribute '{part}' not found",
+                        context={"object_path": object_path, "attribute": part},
+                    )
 
         # Inspect the object we've retrieved
-        return inspect_object(obj)
+        inspection = inspect_object(obj)
+        return success_response(
+            inspection, message=f"Inspected object at '{object_path}'", context={"object_path": object_path}
+        )
     except Exception as e:
-        return {"error": f"Error inspecting object: {str(e)}"}
+        return error_response(
+            "OPERATION_FAILED", f"Error inspecting object: {str(e)}", context={"object_path": object_path}
+        )
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

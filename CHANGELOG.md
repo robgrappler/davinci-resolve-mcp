@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-06-20
 
 ### Changed
 - **BREAKING**: All `@tool()` functions now return a uniform response envelope `{ok, data, error, message, context}` instead of raw strings or ad-hoc dicts. This enables pipeline-oriented clients to check `result["ok"]` and parse errors uniformly. See `docs/PHASE4_ENVELOPE_PLAN.md` for migration details.

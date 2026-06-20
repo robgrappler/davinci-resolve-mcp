@@ -107,7 +107,7 @@ def link_proxy_media(clip_name: str, proxy_file_path: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -173,7 +173,7 @@ def unlink_proxy_media(clip_name: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -231,7 +231,7 @@ def replace_clip(clip_name: str, replacement_path: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -300,7 +300,7 @@ def transcribe_audio(clip_name: str, language: str = "en-US") -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -360,7 +360,7 @@ def clear_transcription(clip_name: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -438,7 +438,7 @@ def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") 
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -517,7 +517,7 @@ def transcribe_folder_audio(folder_name: str, language: str = "en-US") -> Dict[s
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
@@ -583,7 +583,7 @@ def clear_folder_transcription(folder_name: str) -> Dict[str, Any]:
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return error_response("NO_PROJECT", "Failed to get Project Manager")
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
