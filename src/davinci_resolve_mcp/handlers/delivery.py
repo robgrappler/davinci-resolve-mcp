@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
-from davinci_resolve_mcp.utils.response import success_response, error_response
+from davinci_resolve_mcp.utils.response import success_response, error_response, warn_response
 
 logger = logging.getLogger("davinci-resolve-mcp.delivery")
 registry = HandlerRegistry()
@@ -64,6 +64,8 @@ def start_render() -> Dict[str, Any]:
     result = start_render_func(resolve)
     if isinstance(result, dict) and "error" in result:
         return error_response("OPERATION_FAILED", result["error"])
+    if isinstance(result, dict) and "warning" in result:
+        return warn_response(result["warning"], data=result)
     return success_response(result, message="Render started")
 
 

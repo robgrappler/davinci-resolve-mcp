@@ -52,7 +52,15 @@ if _ENABLED:
             exec(code, exec_scope)
 
             if "result" in exec_scope:
-                return success_response({"result": exec_scope["result"]}, message="Executed successfully")
+                raw = exec_scope["result"]
+                try:
+                    import json
+
+                    json.dumps(raw)
+                    safe = raw
+                except (TypeError, ValueError):
+                    safe = str(raw)
+                return success_response({"result": safe}, message="Executed successfully")
             return success_response({"result": None}, message="Executed successfully (no 'result' variable set)")
 
         except Exception as e:
