@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 import os
 import traceback
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.scripting")
 registry = HandlerRegistry()
@@ -24,14 +25,17 @@ if _ENABLED:
     )
 
     @tool()
-    def execute_python(code: str) -> str:
+    def execute_python(code: str) -> Dict[str, Any]:
         """Execute arbitrary Python code in DaVinci Resolve context.
 
         Args:
             code: The Python code to execute
         """
         if resolve is None:
-            return "Error: Not connected to DaVinci Resolve"
+            return error_response(
+                "NOT_CONNECTED",
+                "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+            )
 
         try:
             exec_scope: dict[str, Any] = {"resolve": resolve}
@@ -48,11 +52,15 @@ if _ENABLED:
             exec(code, exec_scope)
 
             if "result" in exec_scope:
-                return str(exec_scope["result"])
-            return "Executed successfully (no 'result' variable set)"
+                return success_response({"result": exec_scope["result"]}, message="Executed successfully")
+            return success_response({"result": None}, message="Executed successfully (no 'result' variable set)")
 
         except Exception as e:
-            return f"Error executing Python code: {str(e)}\n{traceback.format_exc()}"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Error executing Python code: {str(e)}",
+                details={"traceback": traceback.format_exc()},
+            )
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

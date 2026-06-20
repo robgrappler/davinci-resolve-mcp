@@ -14,6 +14,7 @@ from davinci_resolve_mcp.utils.app_control import (
     open_project_settings,
     open_preferences,
 )
+from davinci_resolve_mcp.utils.response import error_response, success_response
 
 logger = logging.getLogger("davinci-resolve-mcp.app_control")
 registry = HandlerRegistry()
@@ -32,7 +33,7 @@ def get_app_state_endpoint() -> Dict[str, Any]:
 
 
 @tool()
-def quit_app(force: bool = False, save_project: bool = True) -> str:
+def quit_app(force: bool = False, save_project: bool = True) -> Dict[str, Any]:
     """
     Quit DaVinci Resolve application.
 
@@ -41,18 +42,21 @@ def quit_app(force: bool = False, save_project: bool = True) -> str:
         save_project: Whether to save the project before quitting
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     result = quit_resolve_app(resolve, force, save_project)
 
     if result:
-        return "DaVinci Resolve quit command sent successfully"
+        return success_response(
+            message="DaVinci Resolve quit command sent successfully",
+            context={"force": force, "save_project": save_project},
+        )
     else:
-        return "Failed to quit DaVinci Resolve"
+        return error_response("OPERATION_FAILED", "Failed to quit DaVinci Resolve")
 
 
 @tool()
-def restart_app(wait_seconds: int = 5) -> str:
+def restart_app(wait_seconds: int = 5) -> Dict[str, Any]:
     """
     Restart DaVinci Resolve application.
 
@@ -60,42 +64,45 @@ def restart_app(wait_seconds: int = 5) -> str:
         wait_seconds: Seconds to wait between quit and restart
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     result = restart_resolve_app(resolve, wait_seconds)
 
     if result:
-        return "DaVinci Resolve restart initiated successfully"
+        return success_response(
+            message="DaVinci Resolve restart initiated successfully",
+            context={"wait_seconds": wait_seconds},
+        )
     else:
-        return "Failed to restart DaVinci Resolve"
+        return error_response("OPERATION_FAILED", "Failed to restart DaVinci Resolve")
 
 
 @tool()
-def open_settings() -> str:
+def open_settings() -> Dict[str, Any]:
     """Open the Project Settings dialog in DaVinci Resolve."""
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     result = open_project_settings(resolve)
 
     if result:
-        return "Project Settings dialog opened successfully"
+        return success_response(message="Project Settings dialog opened successfully")
     else:
-        return "Failed to open Project Settings dialog"
+        return error_response("OPERATION_FAILED", "Failed to open Project Settings dialog")
 
 
 @tool()
-def open_app_preferences() -> str:
+def open_app_preferences() -> Dict[str, Any]:
     """Open the Preferences dialog in DaVinci Resolve."""
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     result = open_preferences(resolve)
 
     if result:
-        return "Preferences dialog opened successfully"
+        return success_response(message="Preferences dialog opened successfully")
     else:
-        return "Failed to open Preferences dialog"
+        return error_response("OPERATION_FAILED", "Failed to open Preferences dialog")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

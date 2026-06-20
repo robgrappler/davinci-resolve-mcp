@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.timeline_items")
 registry = HandlerRegistry()
@@ -215,7 +216,7 @@ def get_timeline_items() -> List[Dict[str, Any]]:
 
 
 @tool()
-def set_timeline_item_transform(timeline_item_id: str, property_name: str, property_value: float) -> str:
+def set_timeline_item_transform(timeline_item_id: str, property_name: str, property_value: float) -> Dict[str, Any]:
     """Set a transform property for a timeline item.
 
     Args:
@@ -226,25 +227,25 @@ def set_timeline_item_transform(timeline_item_id: str, property_name: str, prope
         property_value: The value to set for the property
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate property name
     valid_properties = ["Pan", "Tilt", "ZoomX", "ZoomY", "Rotation", "AnchorPointX", "AnchorPointY", "Pitch", "Yaw"]
 
     if property_name not in valid_properties:
-        return f"Error: Invalid property name. Must be one of: {', '.join(valid_properties)}"
+        return error_response("INVALID_ARG", f"Invalid property name. Must be one of: {', '.join(valid_properties)}")
 
     try:
         # Find the timeline item by ID
@@ -264,36 +265,46 @@ def set_timeline_item_transform(timeline_item_id: str, property_name: str, prope
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
         if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
+            return error_response("INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' is not a video item")
 
         # Set the property
         # DEBUG: Check if SetProperty exists and is callable
         func = getattr(timeline_item, "SetProperty", None)
         if not callable(func):
-            return f"Error: SetProperty is {type(func)} on item {type(timeline_item)} (ID: {timeline_item_id})"
+            return error_response(
+                "OPERATION_FAILED",
+                f"SetProperty is {type(func)} on item {type(timeline_item)} (ID: {timeline_item_id})",
+            )
 
         try:
             result = func(property_name, property_value)
         except Exception as e:
-            return f"Error executing SetProperty: {e} (Type: {type(e)})"
+            return error_response("OPERATION_FAILED", f"Error executing SetProperty: {e} (Type: {type(e)})")
 
         if result:
-            return f"Successfully set {property_name} to {property_value} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set {property_name} to {property_value} for timeline item '{timeline_item.GetName()}'",
+                context={
+                    "timeline_item_id": timeline_item_id,
+                    "property_name": property_name,
+                    "property_value": property_value,
+                },
+            )
         else:
             try:
                 name = timeline_item.GetName()
             except Exception:
                 name = "Unknown"
-            return f"Failed to set {property_name} for timeline item '{name}'"
+            return error_response("OPERATION_FAILED", f"Failed to set {property_name} for timeline item '{name}'")
     except Exception as e:
-        return f"Error setting timeline item property: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item property: {str(e)}")
 
 
 @tool()
-def set_timeline_item_crop(timeline_item_id: str, crop_type: str, crop_value: float) -> str:
+def set_timeline_item_crop(timeline_item_id: str, crop_type: str, crop_value: float) -> Dict[str, Any]:
     """Set a crop property for a timeline item.
 
     Args:
@@ -302,25 +313,25 @@ def set_timeline_item_crop(timeline_item_id: str, crop_type: str, crop_value: fl
         crop_value: The value to set for the crop (typically 0.0 to 1.0)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate crop type
     valid_crop_types = ["Left", "Right", "Top", "Bottom"]
 
     if crop_type not in valid_crop_types:
-        return f"Error: Invalid crop type. Must be one of: {', '.join(valid_crop_types)}"
+        return error_response("INVALID_ARG", f"Invalid crop type. Must be one of: {', '.join(valid_crop_types)}")
 
     property_name = f"Crop{crop_type}"
 
@@ -342,23 +353,31 @@ def set_timeline_item_crop(timeline_item_id: str, crop_type: str, crop_value: fl
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
         if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
+            return error_response("INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' is not a video item")
 
         # Set the property
         result = timeline_item.SetProperty(property_name, crop_value)
         if result:
-            return f"Successfully set crop {crop_type.lower()} to {crop_value} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set crop {crop_type.lower()} to {crop_value} for timeline item '{timeline_item.GetName()}'",
+                context={"timeline_item_id": timeline_item_id, "crop_type": crop_type, "crop_value": crop_value},
+            )
         else:
-            return f"Failed to set crop {crop_type.lower()} for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to set crop {crop_type.lower()} for timeline item '{timeline_item.GetName()}'",
+            )
     except Exception as e:
-        return f"Error setting timeline item crop: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item crop: {str(e)}")
 
 
 @tool()
-def set_timeline_item_composite(timeline_item_id: str, composite_mode: str = None, opacity: float = None) -> str:
+def set_timeline_item_composite(
+    timeline_item_id: str, composite_mode: str = None, opacity: float = None
+) -> Dict[str, Any]:
     """Set composite properties for a timeline item.
 
     Args:
@@ -367,23 +386,23 @@ def set_timeline_item_composite(timeline_item_id: str, composite_mode: str = Non
         opacity: Optional opacity value to set (0.0 to 1.0)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate inputs
     if composite_mode is None and opacity is None:
-        return "Error: Must specify at least one of composite_mode or opacity"
+        return error_response("INVALID_ARG", "Must specify at least one of composite_mode or opacity")
 
     # Valid composite modes
     valid_composite_modes = [
@@ -408,10 +427,12 @@ def set_timeline_item_composite(timeline_item_id: str, composite_mode: str = Non
     ]
 
     if composite_mode and composite_mode not in valid_composite_modes:
-        return f"Error: Invalid composite mode. Must be one of: {', '.join(valid_composite_modes)}"
+        return error_response(
+            "INVALID_ARG", f"Invalid composite mode. Must be one of: {', '.join(valid_composite_modes)}"
+        )
 
     if opacity is not None and (opacity < 0.0 or opacity > 1.0):
-        return "Error: Opacity must be between 0.0 and 1.0"
+        return error_response("INVALID_ARG", "Opacity must be between 0.0 and 1.0")
 
     try:
         # Find the timeline item by ID
@@ -431,41 +452,47 @@ def set_timeline_item_composite(timeline_item_id: str, composite_mode: str = Non
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
         if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
+            return error_response("INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' is not a video item")
 
-        success = True
+        op_success = True
 
         # Set composite mode if specified
         if composite_mode:
             result = timeline_item.SetProperty("CompositeMode", composite_mode)
             if not result:
-                success = False
+                op_success = False
 
         # Set opacity if specified
         if opacity is not None:
             result = timeline_item.SetProperty("Opacity", opacity)
             if not result:
-                success = False
+                op_success = False
 
-        if success:
+        if op_success:
             changes = []
             if composite_mode:
                 changes.append(f"composite mode to '{composite_mode}'")
             if opacity is not None:
                 changes.append(f"opacity to {opacity}")
 
-            return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'",
+                context={"timeline_item_id": timeline_item_id, "composite_mode": composite_mode, "opacity": opacity},
+            )
         else:
-            return f"Failed to set some composite properties for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to set some composite properties for timeline item '{timeline_item.GetName()}'",
+            )
     except Exception as e:
-        return f"Error setting timeline item composite properties: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item composite properties: {str(e)}")
 
 
 @tool()
-def set_timeline_item_retime(timeline_item_id: str, speed: float = None, process: str = None) -> str:
+def set_timeline_item_retime(timeline_item_id: str, speed: float = None, process: str = None) -> Dict[str, Any]:
     """Set retiming properties for a timeline item.
 
     Args:
@@ -474,30 +501,30 @@ def set_timeline_item_retime(timeline_item_id: str, speed: float = None, process
         process: Optional retime process. Options: 'NearestFrame', 'FrameBlend', 'OpticalFlow'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate inputs
     if speed is None and process is None:
-        return "Error: Must specify at least one of speed or process"
+        return error_response("INVALID_ARG", "Must specify at least one of speed or process")
 
     if speed is not None and speed <= 0:
-        return "Error: Speed must be greater than 0"
+        return error_response("INVALID_ARG", "Speed must be greater than 0")
 
     valid_processes = ["NearestFrame", "FrameBlend", "OpticalFlow"]
     if process and process not in valid_processes:
-        return f"Error: Invalid retime process. Must be one of: {', '.join(valid_processes)}"
+        return error_response("INVALID_ARG", f"Invalid retime process. Must be one of: {', '.join(valid_processes)}")
 
     try:
         # Find the timeline item by ID
@@ -517,40 +544,46 @@ def set_timeline_item_retime(timeline_item_id: str, speed: float = None, process
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
-        success = True
+        op_success = True
 
         # Set speed if specified
         if speed is not None:
             result = timeline_item.SetProperty("Speed", speed)
             if not result:
-                success = False
+                op_success = False
 
         # Set retime process if specified
         if process:
             result = timeline_item.SetProperty("RetimeProcess", process)
             if not result:
-                success = False
+                op_success = False
 
-        if success:
+        if op_success:
             changes = []
             if speed is not None:
                 changes.append(f"speed to {speed}x")
             if process:
                 changes.append(f"retime process to '{process}'")
 
-            return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'",
+                context={"timeline_item_id": timeline_item_id, "speed": speed, "process": process},
+            )
         else:
-            return f"Failed to set some retime properties for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to set some retime properties for timeline item '{timeline_item.GetName()}'",
+            )
     except Exception as e:
-        return f"Error setting timeline item retime properties: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item retime properties: {str(e)}")
 
 
 @tool()
 def set_timeline_item_stabilization(
     timeline_item_id: str, enabled: bool = None, method: str = None, strength: float = None
-) -> str:
+) -> Dict[str, Any]:
     """Set stabilization properties for a timeline item.
 
     Args:
@@ -560,30 +593,32 @@ def set_timeline_item_stabilization(
         strength: Optional strength value (0.0 to 1.0)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate inputs
     if enabled is None and method is None and strength is None:
-        return "Error: Must specify at least one parameter to modify"
+        return error_response("INVALID_ARG", "Must specify at least one parameter to modify")
 
     valid_methods = ["Perspective", "Similarity", "Translation"]
     if method and method not in valid_methods:
-        return f"Error: Invalid stabilization method. Must be one of: {', '.join(valid_methods)}"
+        return error_response(
+            "INVALID_ARG", f"Invalid stabilization method. Must be one of: {', '.join(valid_methods)}"
+        )
 
     if strength is not None and (strength < 0.0 or strength > 1.0):
-        return "Error: Strength must be between 0.0 and 1.0"
+        return error_response("INVALID_ARG", "Strength must be between 0.0 and 1.0")
 
     try:
         # Find the timeline item by ID
@@ -603,32 +638,32 @@ def set_timeline_item_stabilization(
                 break
 
         if not timeline_item:
-            return f"Error: Video timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Video timeline item with ID '{timeline_item_id}' not found")
 
         if timeline_item.GetType() != "Video":
-            return f"Error: Timeline item with ID '{timeline_item_id}' is not a video item"
+            return error_response("INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' is not a video item")
 
-        success = True
+        op_success = True
 
         # Set enabled if specified
         if enabled is not None:
             result = timeline_item.SetProperty("StabilizationEnable", 1 if enabled else 0)
             if not result:
-                success = False
+                op_success = False
 
         # Set method if specified
         if method:
             result = timeline_item.SetProperty("StabilizationMethod", method)
             if not result:
-                success = False
+                op_success = False
 
         # Set strength if specified
         if strength is not None:
             result = timeline_item.SetProperty("StabilizationStrength", strength)
             if not result:
-                success = False
+                op_success = False
 
-        if success:
+        if op_success:
             changes = []
             if enabled is not None:
                 changes.append(f"stabilization {'enabled' if enabled else 'disabled'}")
@@ -637,17 +672,28 @@ def set_timeline_item_stabilization(
             if strength is not None:
                 changes.append(f"stabilization strength to {strength}")
 
-            return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'",
+                context={
+                    "timeline_item_id": timeline_item_id,
+                    "enabled": enabled,
+                    "method": method,
+                    "strength": strength,
+                },
+            )
         else:
-            return f"Failed to set some stabilization properties for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to set some stabilization properties for timeline item '{timeline_item.GetName()}'",
+            )
     except Exception as e:
-        return f"Error setting timeline item stabilization properties: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item stabilization properties: {str(e)}")
 
 
 @tool()
 def set_timeline_item_audio(
     timeline_item_id: str, volume: float = None, pan: float = None, eq_enabled: bool = None
-) -> str:
+) -> Dict[str, Any]:
     """Set audio properties for a timeline item.
 
     Args:
@@ -657,29 +703,29 @@ def set_timeline_item_audio(
         eq_enabled: Optional boolean to enable/disable EQ
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     # Validate inputs
     if volume is None and pan is None and eq_enabled is None:
-        return "Error: Must specify at least one parameter to modify"
+        return error_response("INVALID_ARG", "Must specify at least one parameter to modify")
 
     if volume is not None and volume < 0.0:
-        return "Error: Volume must be greater than or equal to 0.0"
+        return error_response("INVALID_ARG", "Volume must be greater than or equal to 0.0")
 
     if pan is not None and (pan < -1.0 or pan > 1.0):
-        return "Error: Pan must be between -1.0 and 1.0"
+        return error_response("INVALID_ARG", "Pan must be between -1.0 and 1.0")
 
     try:
         # Find the timeline item by ID
@@ -714,33 +760,35 @@ def set_timeline_item_audio(
                     break
 
         if not timeline_item:
-            return f"Error: Timeline item with ID '{timeline_item_id}' not found"
+            return error_response("NOT_FOUND", f"Timeline item with ID '{timeline_item_id}' not found")
 
         # Check if the item has audio capabilities
         if not is_audio and timeline_item.GetMediaType() != "Audio":
-            return f"Error: Timeline item with ID '{timeline_item_id}' does not have audio properties"
+            return error_response(
+                "INVALID_ARG", f"Timeline item with ID '{timeline_item_id}' does not have audio properties"
+            )
 
-        success = True
+        op_success = True
 
         # Set volume if specified
         if volume is not None:
             result = timeline_item.SetProperty("Volume", volume)
             if not result:
-                success = False
+                op_success = False
 
         # Set pan if specified
         if pan is not None:
             result = timeline_item.SetProperty("Pan", pan)
             if not result:
-                success = False
+                op_success = False
 
         # Set EQ enabled if specified
         if eq_enabled is not None:
             result = timeline_item.SetProperty("EQEnable", 1 if eq_enabled else 0)
             if not result:
-                success = False
+                op_success = False
 
-        if success:
+        if op_success:
             changes = []
             if volume is not None:
                 changes.append(f"volume to {volume}")
@@ -749,15 +797,20 @@ def set_timeline_item_audio(
             if eq_enabled is not None:
                 changes.append(f"EQ {'enabled' if eq_enabled else 'disabled'}")
 
-            return f"Successfully set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'"
+            return success_response(
+                message=f"Set {' and '.join(changes)} for timeline item '{timeline_item.GetName()}'",
+                context={"timeline_item_id": timeline_item_id, "volume": volume, "pan": pan, "eq_enabled": eq_enabled},
+            )
         else:
-            return f"Failed to set some audio properties for timeline item '{timeline_item.GetName()}'"
+            return error_response(
+                "OPERATION_FAILED", f"Failed to set some audio properties for timeline item '{timeline_item.GetName()}'"
+            )
     except Exception as e:
-        return f"Error setting timeline item audio properties: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting timeline item audio properties: {str(e)}")
 
 
 @tool()
-def set_timeline_item_name(timeline_item_id: str, name: str) -> str:
+def set_timeline_item_name(timeline_item_id: str, name: str) -> Dict[str, Any]:
     """Set the name of a timeline item.
 
     Args:
@@ -765,19 +818,19 @@ def set_timeline_item_name(timeline_item_id: str, name: str) -> str:
         name: The new name
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     try:
         # Find item
@@ -795,15 +848,18 @@ def set_timeline_item_name(timeline_item_id: str, name: str) -> str:
                 break
 
         if not timeline_item:
-            return f"Error: Timeline item {timeline_item_id} not found"
+            return error_response("NOT_FOUND", f"Timeline item {timeline_item_id} not found")
 
         if timeline_item.SetName(name):
-            return f"Successfully set name to '{name}'"
+            return success_response(
+                message=f"Set name to '{name}'",
+                context={"timeline_item_id": timeline_item_id, "name": name},
+            )
         else:
-            return f"Failed to set name for item {timeline_item_id}"
+            return error_response("OPERATION_FAILED", f"Failed to set name for item {timeline_item_id}")
 
     except Exception as e:
-        return f"Error setting name: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting name: {str(e)}")
 
 
 @resource("resolve://timeline-items-list")

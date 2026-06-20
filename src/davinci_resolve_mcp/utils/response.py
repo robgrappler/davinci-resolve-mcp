@@ -74,3 +74,30 @@ def error_response(
     if context is not None:
         resp["context"] = context
     return resp
+
+
+def warn_response(
+    message: str,
+    data: Any = None,
+    context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Warning envelope — operation succeeded but with a caveat.
+
+    Used for soft no-ops like "queue already empty" or "preset already exists".
+    Same shape as success_response but message describes the warning.
+
+    Args:
+        message: Human‑readable warning description
+        data: Optional payload
+        context: Optional extra context
+    """
+
+    resp: Dict[str, Any] = {
+        "ok": True,
+        "data": data,
+        "error": None,
+        "message": message,
+    }
+    if context is not None:
+        resp["context"] = context
+    return resp

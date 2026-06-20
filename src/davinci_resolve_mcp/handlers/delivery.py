@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.delivery")
 registry = HandlerRegistry()
@@ -35,7 +36,19 @@ def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_
     """
     from api.delivery_operations import add_to_render_queue as add_queue_func
 
-    return add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
+    if resolve is None:
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
+    if isinstance(result, dict) and "error" in result:
+        return error_response(
+            "OPERATION_FAILED", result["error"], context={"preset_name": preset_name, "timeline_name": timeline_name}
+        )
+    return success_response(
+        result, message="Added to render queue", context={"preset_name": preset_name, "timeline_name": timeline_name}
+    )
 
 
 @tool()
@@ -43,7 +56,15 @@ def start_render() -> Dict[str, Any]:
     """Start rendering the jobs in the render queue."""
     from api.delivery_operations import start_render as start_render_func
 
-    return start_render_func(resolve)
+    if resolve is None:
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = start_render_func(resolve)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"])
+    return success_response(result, message="Render started")
 
 
 @resource("resolve://delivery/render-queue/status")
@@ -59,11 +80,19 @@ def clear_render_queue() -> Dict[str, Any]:
     """Clear all jobs from the render queue."""
     from api.delivery_operations import clear_render_queue as clear_queue_func
 
-    return clear_queue_func(resolve)
+    if resolve is None:
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = clear_queue_func(resolve)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"])
+    return success_response(result, message="Render queue cleared")
 
 
 @tool()
-def link_proxy_media(clip_name: str, proxy_file_path: str) -> str:
+def link_proxy_media(clip_name: str, proxy_file_path: str) -> Dict[str, Any]:
     """Link a proxy media file to a clip.
 
     Args:
@@ -71,19 +100,22 @@ def link_proxy_media(clip_name: str, proxy_file_path: str) -> str:
         proxy_file_path: Path to the proxy media file
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the clip by name
     clips = get_all_media_pool_clips(media_pool)
@@ -95,43 +127,61 @@ def link_proxy_media(clip_name: str, proxy_file_path: str) -> str:
             break
 
     if not target_clip:
-        return f"Error: Clip '{clip_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Clip '{clip_name}' not found in Media Pool", context={"clip_name": clip_name}
+        )
 
     # Check if file exists
     if not os.path.exists(proxy_file_path):
-        return f"Error: Proxy file '{proxy_file_path}' does not exist"
+        return error_response(
+            "NOT_FOUND", f"Proxy file '{proxy_file_path}' does not exist", context={"proxy_file_path": proxy_file_path}
+        )
 
     try:
         result = target_clip.LinkProxyMedia(proxy_file_path)
         if result:
-            return f"Successfully linked proxy media '{proxy_file_path}' to clip '{clip_name}'"
+            return success_response(
+                {"clip_name": clip_name, "proxy_file_path": proxy_file_path},
+                message=f"Successfully linked proxy media to clip '{clip_name}'",
+            )
         else:
-            return f"Failed to link proxy media to clip '{clip_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to link proxy media to clip '{clip_name}'",
+                context={"clip_name": clip_name, "proxy_file_path": proxy_file_path},
+            )
     except Exception as e:
-        return f"Error linking proxy media: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Error linking proxy media: {str(e)}",
+            context={"clip_name": clip_name, "proxy_file_path": proxy_file_path},
+        )
 
 
 @tool()
-def unlink_proxy_media(clip_name: str) -> str:
+def unlink_proxy_media(clip_name: str) -> Dict[str, Any]:
     """Unlink proxy media from a clip.
 
     Args:
         clip_name: Name of the clip to unlink proxy from
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the clip by name
     clips = get_all_media_pool_clips(media_pool)
@@ -143,20 +193,30 @@ def unlink_proxy_media(clip_name: str) -> str:
             break
 
     if not target_clip:
-        return f"Error: Clip '{clip_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Clip '{clip_name}' not found in Media Pool", context={"clip_name": clip_name}
+        )
 
     try:
         result = target_clip.UnlinkProxyMedia()
         if result:
-            return f"Successfully unlinked proxy media from clip '{clip_name}'"
+            return success_response(
+                {"clip_name": clip_name}, message=f"Successfully unlinked proxy media from clip '{clip_name}'"
+            )
         else:
-            return f"Failed to unlink proxy media from clip '{clip_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to unlink proxy media from clip '{clip_name}'",
+                context={"clip_name": clip_name},
+            )
     except Exception as e:
-        return f"Error unlinking proxy media: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error unlinking proxy media: {str(e)}", context={"clip_name": clip_name}
+        )
 
 
 @tool()
-def replace_clip(clip_name: str, replacement_path: str) -> str:
+def replace_clip(clip_name: str, replacement_path: str) -> Dict[str, Any]:
     """Replace a clip with another media file.
 
     Args:
@@ -164,19 +224,22 @@ def replace_clip(clip_name: str, replacement_path: str) -> str:
         replacement_path: Path to the replacement media file
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the clip by name
     clips = get_all_media_pool_clips(media_pool)
@@ -188,24 +251,41 @@ def replace_clip(clip_name: str, replacement_path: str) -> str:
             break
 
     if not target_clip:
-        return f"Error: Clip '{clip_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Clip '{clip_name}' not found in Media Pool", context={"clip_name": clip_name}
+        )
 
     # Check if file exists
     if not os.path.exists(replacement_path):
-        return f"Error: Replacement file '{replacement_path}' does not exist"
+        return error_response(
+            "NOT_FOUND",
+            f"Replacement file '{replacement_path}' does not exist",
+            context={"replacement_path": replacement_path},
+        )
 
     try:
         result = target_clip.ReplaceClip(replacement_path)
         if result:
-            return f"Successfully replaced clip '{clip_name}' with '{replacement_path}'"
+            return success_response(
+                {"clip_name": clip_name, "replacement_path": replacement_path},
+                message=f"Successfully replaced clip '{clip_name}'",
+            )
         else:
-            return f"Failed to replace clip '{clip_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to replace clip '{clip_name}'",
+                context={"clip_name": clip_name, "replacement_path": replacement_path},
+            )
     except Exception as e:
-        return f"Error replacing clip: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Error replacing clip: {str(e)}",
+            context={"clip_name": clip_name, "replacement_path": replacement_path},
+        )
 
 
 @tool()
-def transcribe_audio(clip_name: str, language: str = "en-US") -> str:
+def transcribe_audio(clip_name: str, language: str = "en-US") -> Dict[str, Any]:
     """Transcribe audio for a clip.
 
     Args:
@@ -213,19 +293,22 @@ def transcribe_audio(clip_name: str, language: str = "en-US") -> str:
         language: Language code for transcription (default: en-US)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the clip by name
     clips = get_all_media_pool_clips(media_pool)
@@ -237,39 +320,55 @@ def transcribe_audio(clip_name: str, language: str = "en-US") -> str:
             break
 
     if not target_clip:
-        return f"Error: Clip '{clip_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Clip '{clip_name}' not found in Media Pool", context={"clip_name": clip_name}
+        )
 
     try:
         result = target_clip.TranscribeAudio(language)
         if result:
-            return f"Successfully started audio transcription for clip '{clip_name}' in language '{language}'"
+            return success_response(
+                {"clip_name": clip_name, "language": language},
+                message=f"Successfully started audio transcription for clip '{clip_name}'",
+            )
         else:
-            return f"Failed to start audio transcription for clip '{clip_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to start audio transcription for clip '{clip_name}'",
+                context={"clip_name": clip_name, "language": language},
+            )
     except Exception as e:
-        return f"Error during audio transcription: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Error during audio transcription: {str(e)}",
+            context={"clip_name": clip_name, "language": language},
+        )
 
 
 @tool()
-def clear_transcription(clip_name: str) -> str:
+def clear_transcription(clip_name: str) -> Dict[str, Any]:
     """Clear audio transcription for a clip.
 
     Args:
         clip_name: Name of the clip to clear transcription from
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the clip by name
     clips = get_all_media_pool_clips(media_pool)
@@ -281,16 +380,26 @@ def clear_transcription(clip_name: str) -> str:
             break
 
     if not target_clip:
-        return f"Error: Clip '{clip_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Clip '{clip_name}' not found in Media Pool", context={"clip_name": clip_name}
+        )
 
     try:
         result = target_clip.ClearTranscription()
         if result:
-            return f"Successfully cleared audio transcription for clip '{clip_name}'"
+            return success_response(
+                {"clip_name": clip_name}, message=f"Successfully cleared audio transcription for clip '{clip_name}'"
+            )
         else:
-            return f"Failed to clear audio transcription for clip '{clip_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to clear audio transcription for clip '{clip_name}'",
+                context={"clip_name": clip_name},
+            )
     except Exception as e:
-        return f"Error clearing audio transcription: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error clearing audio transcription: {str(e)}", context={"clip_name": clip_name}
+        )
 
 
 # Utility function to get all clips from the media pool (recursively)
@@ -313,7 +422,7 @@ def get_all_media_pool_clips(media_pool):
 
 
 @tool()
-def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") -> str:
+def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") -> Dict[str, Any]:
     """Export a folder to a DRB file or other format.
 
     Args:
@@ -322,19 +431,22 @@ def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") 
         export_type: Export format (DRB is default and currently the only supported option)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the folder by name
     target_folder = None
@@ -351,7 +463,9 @@ def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") 
                 break
 
     if not target_folder:
-        return f"Error: Folder '{folder_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Folder '{folder_name}' not found in Media Pool", context={"folder_name": folder_name}
+        )
 
     # Check if directory exists, create if not
     export_dir = os.path.dirname(export_path)
@@ -359,21 +473,36 @@ def export_folder(folder_name: str, export_path: str, export_type: str = "DRB") 
         try:
             os.makedirs(export_dir)
         except Exception as e:
-            return f"Error creating directory for export: {str(e)}"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Error creating directory for export: {str(e)}",
+                context={"export_path": export_path},
+            )
 
     # Export the folder
     try:
         result = target_folder.Export(export_path)
         if result:
-            return f"Successfully exported folder '{folder_name}' to '{export_path}'"
+            return success_response(
+                {"folder_name": folder_name, "export_path": export_path},
+                message=f"Successfully exported folder '{folder_name}'",
+            )
         else:
-            return f"Failed to export folder '{folder_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to export folder '{folder_name}'",
+                context={"folder_name": folder_name, "export_path": export_path},
+            )
     except Exception as e:
-        return f"Error exporting folder: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Error exporting folder: {str(e)}",
+            context={"folder_name": folder_name, "export_path": export_path},
+        )
 
 
 @tool()
-def transcribe_folder_audio(folder_name: str, language: str = "en-US") -> str:
+def transcribe_folder_audio(folder_name: str, language: str = "en-US") -> Dict[str, Any]:
     """Transcribe audio for all clips in a folder.
 
     Args:
@@ -381,19 +510,22 @@ def transcribe_folder_audio(folder_name: str, language: str = "en-US") -> str:
         language: Language code for transcription (default: en-US)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the folder by name
     target_folder = None
@@ -410,40 +542,56 @@ def transcribe_folder_audio(folder_name: str, language: str = "en-US") -> str:
                 break
 
     if not target_folder:
-        return f"Error: Folder '{folder_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Folder '{folder_name}' not found in Media Pool", context={"folder_name": folder_name}
+        )
 
     # Transcribe audio in the folder
     try:
         result = target_folder.TranscribeAudio(language)
         if result:
-            return f"Successfully started audio transcription for folder '{folder_name}' in language '{language}'"
+            return success_response(
+                {"folder_name": folder_name, "language": language},
+                message=f"Successfully started audio transcription for folder '{folder_name}'",
+            )
         else:
-            return f"Failed to start audio transcription for folder '{folder_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to start audio transcription for folder '{folder_name}'",
+                context={"folder_name": folder_name, "language": language},
+            )
     except Exception as e:
-        return f"Error during audio transcription: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Error during audio transcription: {str(e)}",
+            context={"folder_name": folder_name, "language": language},
+        )
 
 
 @tool()
-def clear_folder_transcription(folder_name: str) -> str:
+def clear_folder_transcription(folder_name: str) -> Dict[str, Any]:
     """Clear audio transcription for all clips in a folder.
 
     Args:
         folder_name: Name of the folder to clear transcriptions from
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Find the folder by name
     target_folder = None
@@ -460,17 +608,28 @@ def clear_folder_transcription(folder_name: str) -> str:
                 break
 
     if not target_folder:
-        return f"Error: Folder '{folder_name}' not found in Media Pool"
+        return error_response(
+            "NOT_FOUND", f"Folder '{folder_name}' not found in Media Pool", context={"folder_name": folder_name}
+        )
 
     # Clear transcription for the folder
     try:
         result = target_folder.ClearTranscription()
         if result:
-            return f"Successfully cleared audio transcription for folder '{folder_name}'"
+            return success_response(
+                {"folder_name": folder_name},
+                message=f"Successfully cleared audio transcription for folder '{folder_name}'",
+            )
         else:
-            return f"Failed to clear audio transcription for folder '{folder_name}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to clear audio transcription for folder '{folder_name}'",
+                context={"folder_name": folder_name},
+            )
     except Exception as e:
-        return f"Error clearing audio transcription: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error clearing audio transcription: {str(e)}", context={"folder_name": folder_name}
+        )
 
 
 # Utility function to get all folders from the media pool (recursively)
@@ -496,58 +655,12 @@ def add_to_render_queue_json(
     timeline_name: str = None,
     use_in_out_range: bool = False,
 ) -> Dict[str, Any]:
-    """Pipeline-oriented wrapper around add_to_render_queue.
+    """Pipeline-oriented alias for add_to_render_queue.
 
-    Returns a stable ``{"ok": bool, "data": ..., "error": ...}`` object
-    regardless of how the underlying helper formats its output.
+    Now that all tools return the standard envelope, this is a thin
+    compatibility wrapper that delegates to the canonical tool.
     """
-    from davinci_resolve_mcp.api.delivery_operations import add_to_render_queue as add_queue_func
-    from davinci_resolve_mcp.utils.response import success_response, error_response
-
-    logger.info(
-        "add_to_render_queue_json: preset=%s timeline=%s in_out=%s",
-        preset_name,
-        timeline_name,
-        use_in_out_range,
-    )
-    raw = add_queue_func(resolve, preset_name, timeline_name, use_in_out_range)
-    context = {"preset_name": preset_name, "timeline_name": timeline_name}
-
-    if isinstance(raw, dict) and "ok" in raw and "error" in raw:
-        return raw
-    if isinstance(raw, str):
-        text = raw.strip()
-        if text.startswith("Error:"):
-            return error_response(
-                code="ADD_TO_RENDER_QUEUE_ERROR",
-                message=text[len("Error:") :].strip() or text,
-                details={"raw": raw},
-                context=context,
-            )
-        if text.lower().startswith("failed"):
-            return error_response(
-                code="ADD_TO_RENDER_QUEUE_FAILED",
-                message=text,
-                details={"raw": raw},
-                context=context,
-            )
-        return success_response(data={"raw": raw}, message=text, context=context)
-    if isinstance(raw, dict) and "error" in raw and not raw.get("ok", True):
-        err = raw["error"]
-        if isinstance(err, dict):
-            return error_response(
-                code=err.get("code", "ADD_TO_RENDER_QUEUE_ERROR"),
-                message=err.get("message", str(err)),
-                details=err.get("details", raw),
-                context=context,
-            )
-        return error_response(
-            code="ADD_TO_RENDER_QUEUE_ERROR",
-            message=str(err),
-            details=raw,
-            context=context,
-        )
-    return success_response(data=raw, context=context)
+    return add_to_render_queue(preset_name, timeline_name, use_in_out_range)
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

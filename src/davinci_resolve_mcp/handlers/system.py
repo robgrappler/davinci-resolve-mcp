@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import error_response, success_response
 
 logger = logging.getLogger("davinci-resolve-mcp.system")
 registry = HandlerRegistry()
@@ -32,26 +33,30 @@ def get_current_page() -> str:
 
 
 @tool()
-def switch_page(page: str) -> str:
+def switch_page(page: str) -> Dict[str, Any]:
     """Switch to a specific page in DaVinci Resolve.
 
     Args:
         page: The page to switch to. Options: 'media', 'cut', 'edit', 'fusion', 'color', 'fairlight', 'deliver'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     valid_pages = ["media", "cut", "edit", "fusion", "color", "fairlight", "deliver"]
     page = page.lower()
 
     if page not in valid_pages:
-        return f"Error: Invalid page name. Must be one of: {', '.join(valid_pages)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid page name. Must be one of: {', '.join(valid_pages)}",
+            context={"valid_pages": valid_pages},
+        )
 
     result = resolve.OpenPage(page)
     if result:
-        return f"Successfully switched to {page} page"
+        return success_response(message=f"Switched to {page} page", context={"page": page})
     else:
-        return f"Failed to switch to {page} page"
+        return error_response("OPERATION_FAILED", f"Failed to switch to {page} page", context={"page": page})
 
 
 @tool()
@@ -61,7 +66,7 @@ def debug_environment() -> Dict[str, Any]:
     import os
     import platform
 
-    return {
+    payload = {
         "python_version": sys.version,
         "platform": platform.platform(),
         "sys_path": sys.path,
@@ -71,6 +76,7 @@ def debug_environment() -> Dict[str, Any]:
         "resolve_product": resolve.GetProductName() if resolve else None,
         "resolve_version": resolve.GetVersionString() if resolve else None,
     }
+    return success_response(data=payload, message="Debug environment info")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

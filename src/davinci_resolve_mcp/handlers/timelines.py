@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.timelines")
 registry = HandlerRegistry()
@@ -99,35 +100,35 @@ def get_timeline_tracks(timeline_name: str = None) -> Dict[str, Any]:
 
 
 @tool()
-def create_timeline(name: str) -> str:
+def create_timeline(name: str) -> Dict[str, Any]:
     """Create a new timeline with the given name.
 
     Args:
         name: The name for the new timeline
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not name:
-        return "Error: Timeline name cannot be empty"
+        return error_response("INVALID_ARG", "Timeline name cannot be empty")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     timeline = media_pool.CreateEmptyTimeline(name)
     if timeline:
-        return f"Successfully created timeline '{name}'"
+        return success_response(message=f"Created timeline '{name}'", context={"timeline_name": name})
     else:
-        return f"Failed to create timeline '{name}'"
+        return error_response("OPERATION_FAILED", f"Failed to create timeline '{name}'")
 
 
 @tool()
@@ -139,7 +140,7 @@ def create_empty_timeline(
     start_timecode: str = None,
     video_tracks: int = None,
     audio_tracks: int = None,
-) -> str:
+) -> Dict[str, Any]:
     """Create a new timeline with the given name and custom settings.
 
     Args:
@@ -153,13 +154,19 @@ def create_empty_timeline(
     """
     from api.timeline_operations import create_empty_timeline as create_empty_timeline_func
 
-    return create_empty_timeline_func(
+    result = create_empty_timeline_func(
         resolve, name, frame_rate, resolution_width, resolution_height, start_timecode, video_tracks, audio_tracks
     )
+    if result.startswith("Error:"):
+        return error_response("OPERATION_FAILED", result[7:].strip())
+    elif result.startswith("Failed"):
+        return error_response("OPERATION_FAILED", result)
+    else:
+        return success_response(message=result, context={"timeline_name": name})
 
 
 @tool()
-def delete_timeline(name: str) -> str:
+def delete_timeline(name: str) -> Dict[str, Any]:
     """Delete a timeline by name.
 
     Args:
@@ -167,29 +174,35 @@ def delete_timeline(name: str) -> str:
     """
     from api.timeline_operations import delete_timeline as delete_timeline_func
 
-    return delete_timeline_func(resolve, name)
+    result = delete_timeline_func(resolve, name)
+    if result.startswith("Error:"):
+        return error_response("OPERATION_FAILED", result[7:].strip())
+    elif result.startswith("Failed"):
+        return error_response("OPERATION_FAILED", result)
+    else:
+        return success_response(message=result, context={"timeline_name": name})
 
 
 @tool()
-def set_current_timeline(name: str) -> str:
+def set_current_timeline(name: str) -> Dict[str, Any]:
     """Switch to a timeline by name.
 
     Args:
         name: The name of the timeline to set as current
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not name:
-        return "Error: Timeline name cannot be empty"
+        return error_response("INVALID_ARG", "Timeline name cannot be empty")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Find the timeline by name
     timeline_count = current_project.GetTimelineCount()
@@ -198,15 +211,15 @@ def set_current_timeline(name: str) -> str:
         if timeline and timeline.GetName() == name:
             result = current_project.SetCurrentTimeline(timeline)
             if result:
-                return f"Successfully switched to timeline '{name}'"
+                return success_response(message=f"Switched to timeline '{name}'", context={"timeline_name": name})
             else:
-                return f"Failed to switch to timeline '{name}'"
+                return error_response("OPERATION_FAILED", f"Failed to switch to timeline '{name}'")
 
-    return f"Error: Timeline '{name}' not found"
+    return error_response("NOT_FOUND", f"Timeline '{name}' not found")
 
 
 @tool()
-def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> str:
+def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> Dict[str, Any]:
     """Add a marker at the specified frame in the current timeline.
 
     Args:
@@ -216,38 +229,50 @@ def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> str:
     """
     from api.timeline_operations import add_marker as add_marker_func
 
-    return add_marker_func(resolve, frame, color, note)
+    result = add_marker_func(resolve, frame, color, note)
+    if result.startswith("Error:"):
+        return error_response("OPERATION_FAILED", result[7:].strip())
+    elif result.startswith("Failed"):
+        return error_response("OPERATION_FAILED", result)
+    else:
+        return success_response(message=result, context={"frame": frame, "color": color, "note": note})
 
 
 @tool()
-def set_current_frame(frame: int) -> str:
+def set_current_frame(frame: int) -> Dict[str, Any]:
     """Set the current playhead position to a specific frame.
 
     Args:
         frame: The frame number to move the playhead to
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     current_timeline = current_project.GetCurrentTimeline()
     if not current_timeline:
-        return "Error: No timeline currently active"
+        return error_response("NO_TIMELINE", "No timeline currently active")
 
     from davinci_resolve_mcp.api.timeline_operations import set_current_frame as set_current_frame_func
 
-    return set_current_frame_func(resolve, frame)
+    result = set_current_frame_func(resolve, frame)
+    if result.startswith("Error:"):
+        return error_response("OPERATION_FAILED", result[7:].strip())
+    elif result.startswith("Failed"):
+        return error_response("OPERATION_FAILED", result)
+    else:
+        return success_response(message=result, context={"frame": frame})
 
 
 @tool()
-def razor_timeline(frame: int = None) -> str:
+def razor_timeline(frame: int = None) -> Dict[str, Any]:
     """Cut all clips at the current playhead position or a specified frame.
 
     Args:
@@ -255,7 +280,13 @@ def razor_timeline(frame: int = None) -> str:
     """
     from davinci_resolve_mcp.api.timeline_operations import razor_timeline as razor_timeline_func
 
-    return razor_timeline_func(resolve, frame)
+    result = razor_timeline_func(resolve, frame)
+    if result.startswith("Error:") or result.startswith("Aborted"):
+        return error_response("OPERATION_FAILED", result)
+    elif result.startswith("Failed"):
+        return error_response("OPERATION_FAILED", result)
+    else:
+        return success_response(message=result, context={"frame": frame})
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

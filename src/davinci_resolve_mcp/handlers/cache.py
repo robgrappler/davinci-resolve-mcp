@@ -10,6 +10,7 @@ from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
 
 from davinci_resolve_mcp.handlers.delivery import get_all_media_pool_clips
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.cache")
 registry = HandlerRegistry()
@@ -56,28 +57,35 @@ def get_cache_settings() -> Dict[str, Any]:
 
 
 @tool()
-def set_cache_mode(mode: str) -> str:
+def set_cache_mode(mode: str) -> Dict[str, Any]:
     """Set cache mode for the current project.
 
     Args:
         mode: Cache mode to set. Options: 'auto', 'on', 'off'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Validate mode
     valid_modes = ["auto", "on", "off"]
     mode = mode.lower()
     if mode not in valid_modes:
-        return f"Error: Invalid cache mode. Must be one of: {', '.join(valid_modes)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid cache mode. Must be one of: {', '.join(valid_modes)}",
+            context={"mode": mode, "valid_modes": valid_modes},
+        )
 
     # Convert mode to API value
     mode_map = {"auto": "0", "on": "1", "off": "2"}
@@ -85,36 +93,43 @@ def set_cache_mode(mode: str) -> str:
     try:
         result = current_project.SetSetting("CacheMode", mode_map[mode])
         if result:
-            return f"Successfully set cache mode to '{mode}'"
+            return success_response({"mode": mode}, message=f"Successfully set cache mode to '{mode}'")
         else:
-            return f"Failed to set cache mode to '{mode}'"
+            return error_response("OPERATION_FAILED", f"Failed to set cache mode to '{mode}'", context={"mode": mode})
     except Exception as e:
-        return f"Error setting cache mode: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting cache mode: {str(e)}", context={"mode": mode})
 
 
 @tool()
-def set_optimized_media_mode(mode: str) -> str:
+def set_optimized_media_mode(mode: str) -> Dict[str, Any]:
     """Set optimized media mode for the current project.
 
     Args:
         mode: Optimized media mode to set. Options: 'auto', 'on', 'off'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Validate mode
     valid_modes = ["auto", "on", "off"]
     mode = mode.lower()
     if mode not in valid_modes:
-        return f"Error: Invalid optimized media mode. Must be one of: {', '.join(valid_modes)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid optimized media mode. Must be one of: {', '.join(valid_modes)}",
+            context={"mode": mode, "valid_modes": valid_modes},
+        )
 
     # Convert mode to API value
     mode_map = {"auto": "0", "on": "1", "off": "2"}
@@ -122,36 +137,47 @@ def set_optimized_media_mode(mode: str) -> str:
     try:
         result = current_project.SetSetting("OptimizedMediaMode", mode_map[mode])
         if result:
-            return f"Successfully set optimized media mode to '{mode}'"
+            return success_response({"mode": mode}, message=f"Successfully set optimized media mode to '{mode}'")
         else:
-            return f"Failed to set optimized media mode to '{mode}'"
+            return error_response(
+                "OPERATION_FAILED", f"Failed to set optimized media mode to '{mode}'", context={"mode": mode}
+            )
     except Exception as e:
-        return f"Error setting optimized media mode: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error setting optimized media mode: {str(e)}", context={"mode": mode}
+        )
 
 
 @tool()
-def set_proxy_mode(mode: str) -> str:
+def set_proxy_mode(mode: str) -> Dict[str, Any]:
     """Set proxy media mode for the current project.
 
     Args:
         mode: Proxy mode to set. Options: 'auto', 'on', 'off'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Validate mode
     valid_modes = ["auto", "on", "off"]
     mode = mode.lower()
     if mode not in valid_modes:
-        return f"Error: Invalid proxy mode. Must be one of: {', '.join(valid_modes)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid proxy mode. Must be one of: {', '.join(valid_modes)}",
+            context={"mode": mode, "valid_modes": valid_modes},
+        )
 
     # Convert mode to API value
     mode_map = {"auto": "0", "on": "1", "off": "2"}
@@ -159,35 +185,42 @@ def set_proxy_mode(mode: str) -> str:
     try:
         result = current_project.SetSetting("ProxyMode", mode_map[mode])
         if result:
-            return f"Successfully set proxy mode to '{mode}'"
+            return success_response({"mode": mode}, message=f"Successfully set proxy mode to '{mode}'")
         else:
-            return f"Failed to set proxy mode to '{mode}'"
+            return error_response("OPERATION_FAILED", f"Failed to set proxy mode to '{mode}'", context={"mode": mode})
     except Exception as e:
-        return f"Error setting proxy mode: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error setting proxy mode: {str(e)}", context={"mode": mode})
 
 
 @tool()
-def set_proxy_quality(quality: str) -> str:
+def set_proxy_quality(quality: str) -> Dict[str, Any]:
     """Set proxy media quality for the current project.
 
     Args:
         quality: Proxy quality to set. Options: 'quarter', 'half', 'threeQuarter', 'full'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Validate quality
     valid_qualities = ["quarter", "half", "threeQuarter", "full"]
     if quality not in valid_qualities:
-        return f"Error: Invalid proxy quality. Must be one of: {', '.join(valid_qualities)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid proxy quality. Must be one of: {', '.join(valid_qualities)}",
+            context={"quality": quality, "valid_qualities": valid_qualities},
+        )
 
     # Convert quality to API value
     quality_map = {"quarter": "0", "half": "1", "threeQuarter": "2", "full": "3"}
@@ -195,15 +228,19 @@ def set_proxy_quality(quality: str) -> str:
     try:
         result = current_project.SetSetting("ProxyQuality", quality_map[quality])
         if result:
-            return f"Successfully set proxy quality to '{quality}'"
+            return success_response({"quality": quality}, message=f"Successfully set proxy quality to '{quality}'")
         else:
-            return f"Failed to set proxy quality to '{quality}'"
+            return error_response(
+                "OPERATION_FAILED", f"Failed to set proxy quality to '{quality}'", context={"quality": quality}
+            )
     except Exception as e:
-        return f"Error setting proxy quality: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error setting proxy quality: {str(e)}", context={"quality": quality}
+        )
 
 
 @tool()
-def set_cache_path(path_type: str, path: str) -> str:
+def set_cache_path(path_type: str, path: str) -> Dict[str, Any]:
     """Set cache file path for the current project.
 
     Args:
@@ -211,59 +248,79 @@ def set_cache_path(path_type: str, path: str) -> str:
         path: File system path for the cache
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Validate path_type
     valid_path_types = ["local", "network"]
     path_type = path_type.lower()
     if path_type not in valid_path_types:
-        return f"Error: Invalid path type. Must be one of: {', '.join(valid_path_types)}"
+        return error_response(
+            "INVALID_ARG",
+            f"Invalid path type. Must be one of: {', '.join(valid_path_types)}",
+            context={"path_type": path_type, "valid_path_types": valid_path_types},
+        )
 
     # Check if directory exists
     if not os.path.exists(path):
-        return f"Error: Path '{path}' does not exist"
+        return error_response(
+            "NOT_FOUND", f"Path '{path}' does not exist", context={"path": path, "path_type": path_type}
+        )
 
     setting_key = "LocalCachePath" if path_type == "local" else "NetworkCachePath"
 
     try:
         result = current_project.SetSetting(setting_key, path)
         if result:
-            return f"Successfully set {path_type} cache path to '{path}'"
+            return success_response(
+                {"path_type": path_type, "path": path}, message=f"Successfully set {path_type} cache path to '{path}'"
+            )
         else:
-            return f"Failed to set {path_type} cache path to '{path}'"
+            return error_response(
+                "OPERATION_FAILED",
+                f"Failed to set {path_type} cache path to '{path}'",
+                context={"path_type": path_type, "path": path},
+            )
     except Exception as e:
-        return f"Error setting cache path: {str(e)}"
+        return error_response(
+            "OPERATION_FAILED", f"Error setting cache path: {str(e)}", context={"path_type": path_type, "path": path}
+        )
 
 
 @tool()
-def generate_optimized_media(clip_names: List[str] = None) -> str:
+def generate_optimized_media(clip_names: List[str] = None) -> Dict[str, Any]:
     """Generate optimized media for specified clips or all clips if none specified.
 
     Args:
         clip_names: Optional list of clip names. If None, processes all clips in media pool
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Get clips to process
     if clip_names:
@@ -283,10 +340,14 @@ def generate_optimized_media(clip_names: List[str] = None) -> str:
                 missing_clips.append(name)
 
         if missing_clips:
-            return f"Error: Could not find these clips: {', '.join(missing_clips)}"
+            return error_response(
+                "NOT_FOUND",
+                f"Could not find these clips: {', '.join(missing_clips)}",
+                context={"missing_clips": missing_clips},
+            )
 
         if not clips_to_process:
-            return "Error: No valid clips found to process"
+            return error_response("NOT_FOUND", "No valid clips found to process", context={"clip_names": clip_names})
     else:
         # Get all clips
         clips_to_process = get_all_media_pool_clips(media_pool)
@@ -313,9 +374,12 @@ def generate_optimized_media(clip_names: List[str] = None) -> str:
             clip.ClearFlags("Green")
 
         if result:
-            return f"Successfully started optimized media generation for {len(clips_to_process)} clips"
+            return success_response(
+                {"clip_count": len(clips_to_process)},
+                message=f"Successfully started optimized media generation for {len(clips_to_process)} clips",
+            )
         else:
-            return "Failed to start optimized media generation"
+            return error_response("OPERATION_FAILED", "Failed to start optimized media generation")
     except Exception as e:
         # Clean up flags in case of error
         try:
@@ -323,30 +387,33 @@ def generate_optimized_media(clip_names: List[str] = None) -> str:
                 clip.ClearFlags("Green")
         except Exception:
             pass
-        return f"Error generating optimized media: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error generating optimized media: {str(e)}")
 
 
 @tool()
-def delete_optimized_media(clip_names: List[str] = None) -> str:
+def delete_optimized_media(clip_names: List[str] = None) -> Dict[str, Any]:
     """Delete optimized media for specified clips or all clips if none specified.
 
     Args:
         clip_names: Optional list of clip names. If None, processes all clips in media pool
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     media_pool = current_project.GetMediaPool()
     if not media_pool:
-        return "Error: Failed to get Media Pool"
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     # Get clips to process
     if clip_names:
@@ -366,10 +433,14 @@ def delete_optimized_media(clip_names: List[str] = None) -> str:
                 missing_clips.append(name)
 
         if missing_clips:
-            return f"Error: Could not find these clips: {', '.join(missing_clips)}"
+            return error_response(
+                "NOT_FOUND",
+                f"Could not find these clips: {', '.join(missing_clips)}",
+                context={"missing_clips": missing_clips},
+            )
 
         if not clips_to_process:
-            return "Error: No valid clips found to process"
+            return error_response("NOT_FOUND", "No valid clips found to process", context={"clip_names": clip_names})
     else:
         # Get all clips
         clips_to_process = get_all_media_pool_clips(media_pool)
@@ -396,9 +467,12 @@ def delete_optimized_media(clip_names: List[str] = None) -> str:
             clip.ClearFlags("Green")
 
         if result:
-            return f"Successfully deleted optimized media for {len(clips_to_process)} clips"
+            return success_response(
+                {"clip_count": len(clips_to_process)},
+                message=f"Successfully deleted optimized media for {len(clips_to_process)} clips",
+            )
         else:
-            return "Failed to delete optimized media"
+            return error_response("OPERATION_FAILED", "Failed to delete optimized media")
     except Exception as e:
         # Clean up flags in case of error
         try:
@@ -406,7 +480,7 @@ def delete_optimized_media(clip_names: List[str] = None) -> str:
                 clip.ClearFlags("Green")
         except Exception:
             pass
-        return f"Error deleting optimized media: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error deleting optimized media: {str(e)}")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

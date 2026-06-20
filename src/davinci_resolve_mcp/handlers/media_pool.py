@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 from davinci_resolve_mcp.handlers.timelines import list_timelines
 
@@ -52,7 +53,7 @@ def list_media_pool_clips() -> List[Dict[str, Any]]:
 
 
 @tool()
-def import_media(file_path: str) -> str:
+def import_media(file_path: str) -> Dict[str, Any]:
     """Import media file into the current project's media pool.
 
     Args:
@@ -60,11 +61,19 @@ def import_media(file_path: str) -> str:
     """
     from davinci_resolve_mcp.api.media_operations import import_media as import_media_func
 
-    return import_media_func(resolve, file_path)
+    result = import_media_func(resolve, file_path)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"file_path": file_path})
+    return success_response(data=result, context={"file_path": file_path})
 
 
 @tool()
-def delete_media(clip_name: str) -> str:
+def delete_media(clip_name: str) -> Dict[str, Any]:
     """Delete a media clip from the media pool by name.
 
     Args:
@@ -72,11 +81,19 @@ def delete_media(clip_name: str) -> str:
     """
     from davinci_resolve_mcp.api.media_operations import delete_media as delete_media_func
 
-    return delete_media_func(resolve, clip_name)
+    result = delete_media_func(resolve, clip_name)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_name": clip_name})
+    return success_response(data=result, context={"clip_name": clip_name})
 
 
 @tool()
-def move_media_to_bin(clip_name: str, bin_name: str) -> str:
+def move_media_to_bin(clip_name: str, bin_name: str) -> Dict[str, Any]:
     """Move a media clip to a specific bin in the media pool.
 
     Args:
@@ -85,13 +102,21 @@ def move_media_to_bin(clip_name: str, bin_name: str) -> str:
     """
     from davinci_resolve_mcp.api.media_operations import move_media_to_bin as move_media_func
 
-    return move_media_func(resolve, clip_name, bin_name)
+    result = move_media_func(resolve, clip_name, bin_name)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_name": clip_name, "bin_name": bin_name})
+    return success_response(data=result, context={"clip_name": clip_name, "bin_name": bin_name})
 
 
 @tool()
 def auto_sync_audio(
     clip_names: List[str], sync_method: str = "waveform", append_mode: bool = False, target_bin: str = None
-) -> str:
+) -> Dict[str, Any]:
     """Sync audio between clips with customizable settings.
 
     Args:
@@ -102,11 +127,19 @@ def auto_sync_audio(
     """
     from davinci_resolve_mcp.api.media_operations import auto_sync_audio as auto_sync_audio_func
 
-    return auto_sync_audio_func(resolve, clip_names, sync_method, append_mode, target_bin)
+    result = auto_sync_audio_func(resolve, clip_names, sync_method, append_mode, target_bin)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_names": clip_names, "sync_method": sync_method})
+    return success_response(data=result, context={"clip_names": clip_names, "sync_method": sync_method})
 
 
 @tool()
-def unlink_clips(clip_names: List[str]) -> str:
+def unlink_clips(clip_names: List[str]) -> Dict[str, Any]:
     """Unlink specified clips, disconnecting them from their media files.
 
     Args:
@@ -114,13 +147,21 @@ def unlink_clips(clip_names: List[str]) -> str:
     """
     from davinci_resolve_mcp.api.media_operations import unlink_clips as unlink_clips_func
 
-    return unlink_clips_func(resolve, clip_names)
+    result = unlink_clips_func(resolve, clip_names)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_names": clip_names})
+    return success_response(data=result, context={"clip_names": clip_names})
 
 
 @tool()
 def relink_clips(
     clip_names: List[str], media_paths: List[str] = None, folder_path: str = None, recursive: bool = False
-) -> str:
+) -> Dict[str, Any]:
     """Relink specified clips to their media files.
 
     Args:
@@ -131,13 +172,21 @@ def relink_clips(
     """
     from davinci_resolve_mcp.api.media_operations import relink_clips as relink_clips_func
 
-    return relink_clips_func(resolve, clip_names, media_paths, folder_path, recursive)
+    result = relink_clips_func(resolve, clip_names, media_paths, folder_path, recursive)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_names": clip_names})
+    return success_response(data=result, context={"clip_names": clip_names})
 
 
 @tool()
 def create_sub_clip(
     clip_name: str, start_frame: int, end_frame: int, sub_clip_name: str = None, bin_name: str = None
-) -> str:
+) -> Dict[str, Any]:
     """Create a subclip from the specified clip using in and out points.
 
     Args:
@@ -149,11 +198,23 @@ def create_sub_clip(
     """
     from davinci_resolve_mcp.api.media_operations import create_sub_clip as create_sub_clip_func
 
-    return create_sub_clip_func(resolve, clip_name, start_frame, end_frame, sub_clip_name, bin_name)
+    result = create_sub_clip_func(resolve, clip_name, start_frame, end_frame, sub_clip_name, bin_name)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(
+                message=result, context={"clip_name": clip_name, "start_frame": start_frame, "end_frame": end_frame}
+            )
+    return success_response(
+        data=result, context={"clip_name": clip_name, "start_frame": start_frame, "end_frame": end_frame}
+    )
 
 
 @tool()
-def create_bin(name: str) -> str:
+def create_bin(name: str) -> Dict[str, Any]:
     """Create a new bin/folder in the media pool.
 
     Args:
@@ -161,7 +222,15 @@ def create_bin(name: str) -> str:
     """
     from davinci_resolve_mcp.api.media_operations import create_bin as create_bin_func
 
-    return create_bin_func(resolve, name)
+    result = create_bin_func(resolve, name)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"bin_name": name})
+    return success_response(data=result, context={"bin_name": name})
 
 
 @resource("resolve://media-pool-bins")
@@ -251,16 +320,21 @@ def list_timeline_clips() -> List[Dict[str, Any]]:
 
 
 @tool()
-def list_timelines_tool() -> List[str]:
+def list_timelines_tool() -> Dict[str, Any]:
     """List all timelines in the current project as a tool."""
     logger.info("Received request to list timelines via tool")
-    return list_timelines()
+    result = list_timelines()
+    if isinstance(result, list) and len(result) > 0 and isinstance(result[0], str) and result[0].startswith("Error"):
+        return error_response(
+            "OPERATION_FAILED", result[0][7:].strip() if result[0].startswith("Error: ") else result[0]
+        )
+    return success_response(data=result, message=f"Found {len(result)} timelines" if isinstance(result, list) else None)
 
 
 @tool()
 def add_clip_to_timeline(
     clip_name: str, timeline_name: str = None, start_frame: int = None, end_frame: int = None
-) -> str:
+) -> Dict[str, Any]:
     """Add a media pool clip to the timeline.
 
     Args:
@@ -271,11 +345,19 @@ def add_clip_to_timeline(
     """
     from davinci_resolve_mcp.api.media_operations import add_clip_to_timeline as add_clip_func
 
-    return add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
+    result = add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"clip_name": clip_name, "timeline_name": timeline_name})
+    return success_response(data=result, context={"clip_name": clip_name, "timeline_name": timeline_name})
 
 
 @tool()
-def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> str:
+def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> Dict[str, Any]:
     """Create a new timeline containing the specified list of clips.
 
     Args:
@@ -284,29 +366,47 @@ def create_timeline_from_clips(timeline_name: str, clip_names: List[str]) -> str
     """
     from davinci_resolve_mcp.api.media_operations import create_timeline_from_clips as create_func
 
-    return create_func(resolve, timeline_name, clip_names)
+    result = create_func(resolve, timeline_name, clip_names)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(
+                message=result, context={"timeline_name": timeline_name, "clip_count": len(clip_names)}
+            )
+    return success_response(data=result, context={"timeline_name": timeline_name, "clip_count": len(clip_names)})
 
 
 @tool()
-def list_media_pool_items() -> str:
+def list_media_pool_items() -> Dict[str, Any]:
     """List all items in the media pool (recursive)."""
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
+
     current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return error_response("NO_PROJECT", "No project currently open")
+
     media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return error_response("OPERATION_FAILED", "Failed to get Media Pool")
 
     from davinci_resolve_mcp.handlers.delivery import get_all_media_pool_clips
 
     clips = get_all_media_pool_clips(media_pool)
-    result = []
+    items = []
     for c in clips:
         name = c.GetName()
         file_path = c.GetClipProperty("File Path")
-        result.append(f"Name: {name}, File Path: {file_path}")
+        items.append({"name": name, "file_path": file_path})
 
-    return "\n".join(result)
+    return success_response(data=items, message=f"Found {len(items)} media pool items")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

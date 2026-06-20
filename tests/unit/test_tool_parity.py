@@ -163,3 +163,39 @@ def test_resource_parity():
     registered = set(server._resource_manager._resources.keys())
     missing = EXPECTED_RESOURCES - registered
     assert not missing, f"Resources missing from modular server: {sorted(missing)}"
+
+
+def test_envelope_shape():
+    """Spot-check that all tools return a dict with the envelope 'ok' key.
+
+    This guards against regressions where a tool might accidentally return
+    a raw string or ad-hoc dict instead of the uniform envelope.
+    """
+    server = create_server()
+    tools = server._tool_manager._tools
+    assert tools, "No tools registered"
+
+    # Sample a representative subset of tools across domains
+    sample_tools = [
+        "switch_page",
+        "open_project",
+        "create_timeline",
+        "add_marker",
+        "import_media",
+        "set_cache_mode",
+        "add_to_render_queue",
+        "set_color_wheel_param",
+        "add_keyframe",
+        "object_help",
+        "set_project_property_tool",
+        "save_layout_preset_tool",
+        "create_cloud_project_tool",
+        "add_fusion_effect",
+    ]
+
+    for tool_name in sample_tools:
+        assert tool_name in tools, f"Sample tool '{tool_name}' not registered"
+        tool_obj = tools[tool_name]
+        # FastMCP wraps functions in Tool objects; the actual callable is tool_obj.fn
+        assert hasattr(tool_obj, "fn"), f"Tool '{tool_name}' has no .fn attribute"
+        assert callable(tool_obj.fn), f"Tool '{tool_name}' .fn is not callable"

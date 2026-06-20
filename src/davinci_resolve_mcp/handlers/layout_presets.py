@@ -16,6 +16,7 @@ from davinci_resolve_mcp.utils.layout_presets import (
     import_layout_preset,
     delete_layout_preset,
 )
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.layout_presets")
 registry = HandlerRegistry()
@@ -34,7 +35,7 @@ def get_layout_presets() -> List[Dict[str, Any]]:
 
 
 @tool()
-def save_layout_preset_tool(preset_name: str) -> str:
+def save_layout_preset_tool(preset_name: str) -> Dict[str, Any]:
     """
     Save the current UI layout as a preset.
 
@@ -42,17 +43,24 @@ def save_layout_preset_tool(preset_name: str) -> str:
         preset_name: Name for the saved preset
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     result = save_layout_preset(resolve, preset_name, layout_type="ui")
     if result:
-        return f"Successfully saved layout preset '{preset_name}'"
+        return success_response(
+            {"preset_name": preset_name}, message=f"Successfully saved layout preset '{preset_name}'"
+        )
     else:
-        return f"Failed to save layout preset '{preset_name}'"
+        return error_response(
+            "OPERATION_FAILED", f"Failed to save layout preset '{preset_name}'", context={"preset_name": preset_name}
+        )
 
 
 @tool()
-def load_layout_preset_tool(preset_name: str) -> str:
+def load_layout_preset_tool(preset_name: str) -> Dict[str, Any]:
     """
     Load a UI layout preset.
 
@@ -60,17 +68,24 @@ def load_layout_preset_tool(preset_name: str) -> str:
         preset_name: Name of the preset to load
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     result = load_layout_preset(resolve, preset_name, layout_type="ui")
     if result:
-        return f"Successfully loaded layout preset '{preset_name}'"
+        return success_response(
+            {"preset_name": preset_name}, message=f"Successfully loaded layout preset '{preset_name}'"
+        )
     else:
-        return f"Failed to load layout preset '{preset_name}'"
+        return error_response(
+            "OPERATION_FAILED", f"Failed to load layout preset '{preset_name}'", context={"preset_name": preset_name}
+        )
 
 
 @tool()
-def export_layout_preset_tool(preset_name: str, export_path: str) -> str:
+def export_layout_preset_tool(preset_name: str, export_path: str) -> Dict[str, Any]:
     """
     Export a layout preset to a file.
 
@@ -79,17 +94,27 @@ def export_layout_preset_tool(preset_name: str, export_path: str) -> str:
         export_path: Path to export the preset file to
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     result = export_layout_preset(preset_name, export_path, layout_type="ui")
     if result:
-        return f"Successfully exported layout preset '{preset_name}' to {export_path}"
+        return success_response(
+            {"preset_name": preset_name, "export_path": export_path},
+            message=f"Successfully exported layout preset '{preset_name}' to {export_path}",
+        )
     else:
-        return f"Failed to export layout preset '{preset_name}'"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Failed to export layout preset '{preset_name}'",
+            context={"preset_name": preset_name, "export_path": export_path},
+        )
 
 
 @tool()
-def import_layout_preset_tool(import_path: str, preset_name: str = None) -> str:
+def import_layout_preset_tool(import_path: str, preset_name: str = None) -> Dict[str, Any]:
     """
     Import a layout preset from a file.
 
@@ -98,7 +123,10 @@ def import_layout_preset_tool(import_path: str, preset_name: str = None) -> str:
         preset_name: Name to save the imported preset as (uses filename if None)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     result = import_layout_preset(import_path, preset_name, layout_type="ui")
 
@@ -106,13 +134,20 @@ def import_layout_preset_tool(import_path: str, preset_name: str = None) -> str:
         preset_name = os.path.splitext(os.path.basename(import_path))[0]
 
     if result:
-        return f"Successfully imported layout preset as '{preset_name}'"
+        return success_response(
+            {"preset_name": preset_name, "import_path": import_path},
+            message=f"Successfully imported layout preset as '{preset_name}'",
+        )
     else:
-        return f"Failed to import layout preset from {import_path}"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Failed to import layout preset from {import_path}",
+            context={"import_path": import_path, "preset_name": preset_name},
+        )
 
 
 @tool()
-def delete_layout_preset_tool(preset_name: str) -> str:
+def delete_layout_preset_tool(preset_name: str) -> Dict[str, Any]:
     """
     Delete a layout preset.
 
@@ -120,13 +155,20 @@ def delete_layout_preset_tool(preset_name: str) -> str:
         preset_name: Name of the preset to delete
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     result = delete_layout_preset(preset_name, layout_type="ui")
     if result:
-        return f"Successfully deleted layout preset '{preset_name}'"
+        return success_response(
+            {"preset_name": preset_name}, message=f"Successfully deleted layout preset '{preset_name}'"
+        )
     else:
-        return f"Failed to delete layout preset '{preset_name}'"
+        return error_response(
+            "OPERATION_FAILED", f"Failed to delete layout preset '{preset_name}'", context={"preset_name": preset_name}
+        )
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:
