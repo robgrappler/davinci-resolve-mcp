@@ -21,6 +21,7 @@ from davinci_resolve_mcp.utils.project_properties import (
     get_project_metadata,
     get_project_info,
 )
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.project_properties")
 registry = HandlerRegistry()
@@ -69,7 +70,7 @@ def get_project_property_endpoint(property_name: str) -> Dict[str, Any]:
 
 
 @tool()
-def set_project_property_tool(property_name: str, property_value: Any) -> str:
+def set_project_property_tool(property_name: str, property_value: Any) -> Dict[str, Any]:
     """Set a project property value.
 
     Args:
@@ -77,22 +78,32 @@ def set_project_property_tool(property_name: str, property_value: Any) -> str:
         property_value: Value to set for the property
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("NO_PROJECT", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     result = set_project_property(current_project, property_name, property_value)
 
     if result:
-        return f"Successfully set project property '{property_name}' to '{property_value}'"
+        return success_response(
+            {"property_name": property_name, "property_value": property_value},
+            message=f"Successfully set project property '{property_name}' to '{property_value}'",
+        )
     else:
-        return f"Failed to set project property '{property_name}'"
+        return error_response(
+            "OPERATION_FAILED",
+            f"Failed to set project property '{property_name}'",
+            context={"property_name": property_name, "property_value": property_value},
+        )
 
 
 @resource("resolve://project/timeline-format")
@@ -113,7 +124,7 @@ def get_timeline_format() -> Dict[str, Any]:
 
 
 @tool()
-def set_timeline_format_tool(width: int, height: int, frame_rate: float, interlaced: bool = False) -> str:
+def set_timeline_format_tool(width: int, height: int, frame_rate: float, interlaced: bool = False) -> Dict[str, Any]:
     """Set timeline format (resolution and frame rate).
 
     Args:
@@ -123,23 +134,33 @@ def set_timeline_format_tool(width: int, height: int, frame_rate: float, interla
         interlaced: Whether the timeline should use interlaced processing
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("NO_PROJECT", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     result = set_timeline_format(current_project, width, height, frame_rate, interlaced)
 
     if result:
         interlace_status = "interlaced" if interlaced else "progressive"
-        return f"Successfully set timeline format to {width}x{height} at {frame_rate} fps ({interlace_status})"
+        return success_response(
+            {"width": width, "height": height, "frame_rate": frame_rate, "interlaced": interlaced},
+            message=f"Successfully set timeline format to {width}x{height} at {frame_rate} fps ({interlace_status})",
+        )
     else:
-        return "Failed to set timeline format"
+        return error_response(
+            "OPERATION_FAILED",
+            "Failed to set timeline format",
+            context={"width": width, "height": height, "frame_rate": frame_rate, "interlaced": interlaced},
+        )
 
 
 @resource("resolve://project/superscale")
@@ -160,7 +181,7 @@ def get_superscale_settings_endpoint() -> Dict[str, Any]:
 
 
 @tool()
-def set_superscale_settings_tool(enabled: bool, quality: int = 0) -> str:
+def set_superscale_settings_tool(enabled: bool, quality: int = 0) -> Dict[str, Any]:
     """Set SuperScale settings for the current project.
 
     Args:
@@ -168,15 +189,18 @@ def set_superscale_settings_tool(enabled: bool, quality: int = 0) -> str:
         quality: SuperScale quality (0=Auto, 1=Better Quality, 2=Smoother)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("NO_PROJECT", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     quality_names = {0: "Auto", 1: "Better Quality", 2: "Smoother"}
 
@@ -185,9 +209,14 @@ def set_superscale_settings_tool(enabled: bool, quality: int = 0) -> str:
     if result:
         status = "enabled" if enabled else "disabled"
         quality_name = quality_names.get(quality, "Unknown")
-        return f"Successfully {status} SuperScale with quality set to {quality_name}"
+        return success_response(
+            {"enabled": enabled, "quality": quality, "quality_name": quality_name},
+            message=f"Successfully {status} SuperScale with quality set to {quality_name}",
+        )
     else:
-        return "Failed to set SuperScale settings"
+        return error_response(
+            "OPERATION_FAILED", "Failed to set SuperScale settings", context={"enabled": enabled, "quality": quality}
+        )
 
 
 @resource("resolve://project/color-settings")
@@ -208,33 +237,38 @@ def get_color_settings_endpoint() -> Dict[str, Any]:
 
 
 @tool()
-def set_color_science_mode_tool(mode: str) -> str:
+def set_color_science_mode_tool(mode: str) -> Dict[str, Any]:
     """Set color science mode for the current project.
 
     Args:
         mode: Color science mode ('YRGB', 'YRGB Color Managed', 'ACEScct', or numeric value)
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("NO_PROJECT", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     result = set_color_science_mode(current_project, mode)
 
     if result:
-        return f"Successfully set color science mode to '{mode}'"
+        return success_response({"mode": mode}, message=f"Successfully set color science mode to '{mode}'")
     else:
-        return f"Failed to set color science mode to '{mode}'"
+        return error_response(
+            "OPERATION_FAILED", f"Failed to set color science mode to '{mode}'", context={"mode": mode}
+        )
 
 
 @tool()
-def set_color_space_tool(color_space: str, gamma: str = None) -> str:
+def set_color_space_tool(color_space: str, gamma: str = None) -> Dict[str, Any]:
     """Set timeline color space and gamma.
 
     Args:
@@ -242,25 +276,37 @@ def set_color_space_tool(color_space: str, gamma: str = None) -> str:
         gamma: Timeline gamma (e.g., 'Rec.709 Gamma', 'Gamma 2.4')
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("NO_PROJECT", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     result = set_color_space(current_project, color_space, gamma)
 
     if result:
         if gamma:
-            return f"Successfully set timeline color space to '{color_space}' with gamma '{gamma}'"
+            return success_response(
+                {"color_space": color_space, "gamma": gamma},
+                message=f"Successfully set timeline color space to '{color_space}' with gamma '{gamma}'",
+            )
         else:
-            return f"Successfully set timeline color space to '{color_space}'"
+            return success_response(
+                {"color_space": color_space}, message=f"Successfully set timeline color space to '{color_space}'"
+            )
     else:
-        return "Failed to set timeline color space"
+        return error_response(
+            "OPERATION_FAILED",
+            "Failed to set timeline color space",
+            context={"color_space": color_space, "gamma": gamma},
+        )
 
 
 @resource("resolve://project/metadata")

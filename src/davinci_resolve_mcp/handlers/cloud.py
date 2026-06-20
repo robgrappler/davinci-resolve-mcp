@@ -16,6 +16,7 @@ from davinci_resolve_mcp.utils.cloud_operations import (
     add_user_to_cloud_project,
     remove_user_from_cloud_project,
 )
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.cloud")
 registry = HandlerRegistry()
@@ -42,9 +43,16 @@ def create_cloud_project_tool(project_name: str, folder_path: str = None) -> Dic
         folder_path: Optional path for the cloud project folder
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return create_cloud_project(resolve, project_name, folder_path)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = create_cloud_project(resolve, project_name, folder_path)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"], context={"project_name": project_name})
+    return success_response(
+        result, message=f"Created cloud project '{project_name}'", context={"project_name": project_name}
+    )
 
 
 @tool()
@@ -56,9 +64,16 @@ def import_cloud_project_tool(cloud_id: str, project_name: str = None) -> Dict[s
         project_name: Optional custom name for the imported project (uses original name if None)
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return import_cloud_project(resolve, cloud_id, project_name)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = import_cloud_project(resolve, cloud_id, project_name)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"], context={"cloud_id": cloud_id})
+    return success_response(
+        result, message="Imported cloud project", context={"cloud_id": cloud_id, "project_name": project_name}
+    )
 
 
 @tool()
@@ -70,9 +85,16 @@ def restore_cloud_project_tool(cloud_id: str, project_name: str = None) -> Dict[
         project_name: Optional custom name for the restored project (uses original name if None)
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return restore_cloud_project(resolve, cloud_id, project_name)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = restore_cloud_project(resolve, cloud_id, project_name)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"], context={"cloud_id": cloud_id})
+    return success_response(
+        result, message="Restored cloud project", context={"cloud_id": cloud_id, "project_name": project_name}
+    )
 
 
 @tool()
@@ -83,9 +105,14 @@ def export_project_to_cloud_tool(project_name: str = None) -> Dict[str, Any]:
         project_name: Optional name of project to export (uses current project if None)
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return export_project_to_cloud(resolve, project_name)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = export_project_to_cloud(resolve, project_name)
+    if isinstance(result, dict) and "error" in result:
+        return error_response("OPERATION_FAILED", result["error"], context={"project_name": project_name})
+    return success_response(result, message="Exported project to cloud", context={"project_name": project_name})
 
 
 @tool()
@@ -98,9 +125,20 @@ def add_user_to_cloud_project_tool(cloud_id: str, user_email: str, permissions: 
         permissions: Permission level (viewer, editor, admin)
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return add_user_to_cloud_project(resolve, cloud_id, user_email, permissions)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = add_user_to_cloud_project(resolve, cloud_id, user_email, permissions)
+    if isinstance(result, dict) and "error" in result:
+        return error_response(
+            "OPERATION_FAILED", result["error"], context={"cloud_id": cloud_id, "user_email": user_email}
+        )
+    return success_response(
+        result,
+        message=f"Added user '{user_email}' to cloud project",
+        context={"cloud_id": cloud_id, "user_email": user_email, "permissions": permissions},
+    )
 
 
 @tool()
@@ -112,9 +150,20 @@ def remove_user_from_cloud_project_tool(cloud_id: str, user_email: str) -> Dict[
         user_email: Email of the user to remove
     """
     if resolve is None:
-        return {"error": "Not connected to DaVinci Resolve", "success": False}
-
-    return remove_user_from_cloud_project(resolve, cloud_id, user_email)
+        return error_response(
+            "NOT_CONNECTED",
+            "Could not connect to DaVinci Resolve. Ensure the application is running and the MCP API is enabled in preferences.",
+        )
+    result = remove_user_from_cloud_project(resolve, cloud_id, user_email)
+    if isinstance(result, dict) and "error" in result:
+        return error_response(
+            "OPERATION_FAILED", result["error"], context={"cloud_id": cloud_id, "user_email": user_email}
+        )
+    return success_response(
+        result,
+        message=f"Removed user '{user_email}' from cloud project",
+        context={"cloud_id": cloud_id, "user_email": user_email},
+    )
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:
