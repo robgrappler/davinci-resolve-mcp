@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.color")
 registry = HandlerRegistry()
@@ -36,7 +37,7 @@ def get_color_wheel_params(node_index: int = None) -> Dict[str, Any]:
 
 
 @tool()
-def apply_lut(lut_path: str, node_index: int = None) -> str:
+def apply_lut(lut_path: str, node_index: int = None) -> Dict[str, Any]:
     """Apply a LUT to a node in the color page.
 
     Args:
@@ -45,11 +46,19 @@ def apply_lut(lut_path: str, node_index: int = None) -> str:
     """
     from api.color_operations import apply_lut as apply_lut_func
 
-    return apply_lut_func(resolve, lut_path, node_index)
+    result = apply_lut_func(resolve, lut_path, node_index)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"lut_path": lut_path, "node_index": node_index})
+    return success_response(data=result, context={"lut_path": lut_path, "node_index": node_index})
 
 
 @tool()
-def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int = None) -> str:
+def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int = None) -> Dict[str, Any]:
     """Set a color wheel parameter for a node.
 
     Args:
@@ -60,11 +69,24 @@ def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int 
     """
     from api.color_operations import set_color_wheel_param as set_param_func
 
-    return set_param_func(resolve, wheel, param, value, node_index)
+    result = set_param_func(resolve, wheel, param, value, node_index)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(
+                message=result,
+                context={"wheel": wheel, "param": param, "value": value, "node_index": node_index},
+            )
+    return success_response(
+        data=result, context={"wheel": wheel, "param": param, "value": value, "node_index": node_index}
+    )
 
 
 @tool()
-def add_node(node_type: str = "serial", label: str = None) -> str:
+def add_node(node_type: str = "serial", label: str = None) -> Dict[str, Any]:
     """Add a new node to the current grade in the color page.
 
     Args:
@@ -73,11 +95,19 @@ def add_node(node_type: str = "serial", label: str = None) -> str:
     """
     from api.color_operations import add_node as add_node_func
 
-    return add_node_func(resolve, node_type, label)
+    result = add_node_func(resolve, node_type, label)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(message=result, context={"node_type": node_type, "label": label})
+    return success_response(data=result, context={"node_type": node_type, "label": label})
 
 
 @tool()
-def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode: str = "full") -> str:
+def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode: str = "full") -> Dict[str, Any]:
     """Copy a grade from one clip to another in the color page.
 
     Args:
@@ -87,7 +117,20 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
     """
     from api.color_operations import copy_grade as copy_grade_func
 
-    return copy_grade_func(resolve, source_clip_name, target_clip_name, mode)
+    result = copy_grade_func(resolve, source_clip_name, target_clip_name, mode)
+    if isinstance(result, str):
+        if result.startswith("Error:"):
+            return error_response("OPERATION_FAILED", result[7:].strip())
+        elif result.startswith("Failed"):
+            return error_response("OPERATION_FAILED", result)
+        else:
+            return success_response(
+                message=result,
+                context={"source_clip": source_clip_name, "target_clip": target_clip_name, "mode": mode},
+            )
+    return success_response(
+        data=result, context={"source_clip": source_clip_name, "target_clip": target_clip_name, "mode": mode}
+    )
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:

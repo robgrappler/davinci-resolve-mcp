@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 from davinci_resolve_mcp.context import ResolveContext
 from davinci_resolve_mcp.handlers.registry import HandlerRegistry, install_handlers
+from davinci_resolve_mcp.utils.response import success_response, error_response
 
 logger = logging.getLogger("davinci-resolve-mcp.color_presets")
 registry = HandlerRegistry()
@@ -78,7 +79,9 @@ def get_color_presets() -> List[Dict[str, Any]]:
 
 
 @tool()
-def save_color_preset(clip_name: str = None, preset_name: str = None, album_name: str = "DaVinci Resolve") -> str:
+def save_color_preset(
+    clip_name: str = None, preset_name: str = None, album_name: str = "DaVinci Resolve"
+) -> Dict[str, Any]:
     """Save a color preset from the specified clip.
 
     Args:
@@ -87,15 +90,15 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
         album_name: Album to save the preset to (default: "DaVinci Resolve")
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -106,7 +109,7 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
         # Get the current timeline
         current_timeline = current_project.GetCurrentTimeline()
         if not current_timeline:
-            return "Error: No timeline is currently open"
+            return error_response("NO_TIMELINE", "No timeline is currently open")
 
         # Get the specific clip or current clip
         if clip_name:
@@ -120,7 +123,7 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
                     break
 
             if not target_clip:
-                return f"Error: Clip '{clip_name}' not found in the timeline"
+                return error_response("NOT_FOUND", f"Clip '{clip_name}' not found in the timeline")
 
             # Select the clip
             current_timeline.SetCurrentSelectedItem(target_clip)
@@ -128,7 +131,7 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Get or create album
         album = None
@@ -144,7 +147,7 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
             # Create a new album if it doesn't exist
             album = gallery.CreateAlbum(album_name)
             if not album:
-                return f"Error: Failed to create album '{album_name}'"
+                return error_response("OPERATION_FAILED", f"Failed to create album '{album_name}'")
 
         # Set preset name if specified
         final_preset_name = preset_name
@@ -163,7 +166,7 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
         result = gallery.GrabStill()
 
         if not result:
-            return "Error: Failed to grab still for the preset"
+            return error_response("OPERATION_FAILED", "Failed to grab still for the preset")
 
         # Get the still that was just created
         stills = album.GetStills()
@@ -176,19 +179,22 @@ def save_color_preset(clip_name: str = None, preset_name: str = None, album_name
         if current_page != "color":
             resolve.OpenPage(current_page)
 
-        return f"Successfully saved color preset '{final_preset_name}' to album '{album_name}'"
+        return success_response(
+            message=f"Saved color preset '{final_preset_name}' to album '{album_name}'",
+            context={"preset_name": final_preset_name, "album_name": album_name, "clip_name": clip_name},
+        )
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error saving color preset: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error saving color preset: {str(e)}")
 
 
 @tool()
 def apply_color_preset(
     preset_id: str = None, preset_name: str = None, clip_name: str = None, album_name: str = "DaVinci Resolve"
-) -> str:
+) -> Dict[str, Any]:
     """Apply a color preset to the specified clip.
 
     Args:
@@ -198,18 +204,18 @@ def apply_color_preset(
         album_name: Album containing the preset (default: "DaVinci Resolve")
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not preset_id and not preset_name:
-        return "Error: Must provide either preset_id or preset_name"
+        return error_response("INVALID_ARG", "Must provide either preset_id or preset_name")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -220,7 +226,7 @@ def apply_color_preset(
         # Get the current timeline
         current_timeline = current_project.GetCurrentTimeline()
         if not current_timeline:
-            return "Error: No timeline is currently open"
+            return error_response("NO_TIMELINE", "No timeline is currently open")
 
         # Get the specific clip or current clip
         if clip_name:
@@ -234,7 +240,7 @@ def apply_color_preset(
                     break
 
             if not target_clip:
-                return f"Error: Clip '{clip_name}' not found in the timeline"
+                return error_response("NOT_FOUND", f"Clip '{clip_name}' not found in the timeline")
 
             # Select the clip
             current_timeline.SetCurrentSelectedItem(target_clip)
@@ -242,7 +248,7 @@ def apply_color_preset(
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Find the album
         album = None
@@ -255,12 +261,12 @@ def apply_color_preset(
                     break
 
         if not album:
-            return f"Error: Album '{album_name}' not found"
+            return error_response("NOT_FOUND", f"Album '{album_name}' not found")
 
         # Find the still to apply
         stills = album.GetStills()
         if not stills:
-            return f"Error: No presets found in album '{album_name}'"
+            return error_response("NOT_FOUND", f"No presets found in album '{album_name}'")
 
         target_still = None
 
@@ -279,7 +285,7 @@ def apply_color_preset(
 
         if not target_still:
             search_term = preset_id if preset_id else preset_name
-            return f"Error: Preset '{search_term}' not found in album '{album_name}'"
+            return error_response("NOT_FOUND", f"Preset '{search_term}' not found in album '{album_name}'")
 
         # Apply the preset
         result = target_still.ApplyToClip()
@@ -289,19 +295,29 @@ def apply_color_preset(
             resolve.OpenPage(current_page)
 
         if result:
-            return f"Successfully applied color preset to {'specified clip' if clip_name else 'current clip'}"
+            return success_response(
+                message=f"Applied color preset to {'specified clip' if clip_name else 'current clip'}",
+                context={
+                    "preset_id": preset_id,
+                    "preset_name": preset_name,
+                    "clip_name": clip_name,
+                    "album_name": album_name,
+                },
+            )
         else:
-            return "Failed to apply color preset"
+            return error_response("OPERATION_FAILED", "Failed to apply color preset")
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error applying color preset: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error applying color preset: {str(e)}")
 
 
 @tool()
-def delete_color_preset(preset_id: str = None, preset_name: str = None, album_name: str = "DaVinci Resolve") -> str:
+def delete_color_preset(
+    preset_id: str = None, preset_name: str = None, album_name: str = "DaVinci Resolve"
+) -> Dict[str, Any]:
     """Delete a color preset.
 
     Args:
@@ -310,18 +326,18 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None, album_na
         album_name: Album containing the preset (default: "DaVinci Resolve")
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     if not preset_id and not preset_name:
-        return "Error: Must provide either preset_id or preset_name"
+        return error_response("INVALID_ARG", "Must provide either preset_id or preset_name")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -332,7 +348,7 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None, album_na
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Find the album
         album = None
@@ -345,12 +361,12 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None, album_na
                     break
 
         if not album:
-            return f"Error: Album '{album_name}' not found"
+            return error_response("NOT_FOUND", f"Album '{album_name}' not found")
 
         # Find the still to delete
         stills = album.GetStills()
         if not stills:
-            return f"Error: No presets found in album '{album_name}'"
+            return error_response("NOT_FOUND", f"No presets found in album '{album_name}'")
 
         target_still = None
 
@@ -369,7 +385,7 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None, album_na
 
         if not target_still:
             search_term = preset_id if preset_id else preset_name
-            return f"Error: Preset '{search_term}' not found in album '{album_name}'"
+            return error_response("NOT_FOUND", f"Preset '{search_term}' not found in album '{album_name}'")
 
         # Delete the preset
         result = album.DeleteStill(target_still)
@@ -379,34 +395,41 @@ def delete_color_preset(preset_id: str = None, preset_name: str = None, album_na
             resolve.OpenPage(current_page)
 
         if result:
-            return f"Successfully deleted color preset from album '{album_name}'"
+            return success_response(
+                message=f"Deleted color preset from album '{album_name}'",
+                context={
+                    "preset_id": preset_id,
+                    "preset_name": preset_name,
+                    "album_name": album_name,
+                },
+            )
         else:
-            return "Failed to delete color preset"
+            return error_response("OPERATION_FAILED", "Failed to delete color preset")
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error deleting color preset: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error deleting color preset: {str(e)}")
 
 
 @tool()
-def create_color_preset_album(album_name: str) -> str:
+def create_color_preset_album(album_name: str) -> Dict[str, Any]:
     """Create a new album for color presets.
 
     Args:
         album_name: Name for the new album
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -417,7 +440,7 @@ def create_color_preset_album(album_name: str) -> str:
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Check if album already exists
         albums = gallery.GetAlbums()
@@ -428,7 +451,7 @@ def create_color_preset_album(album_name: str) -> str:
                     # Return to the original page if we switched
                     if current_page != "color":
                         resolve.OpenPage(current_page)
-                    return f"Album '{album_name}' already exists"
+                    return error_response("OPERATION_FAILED", f"Album '{album_name}' already exists")
 
         # Create a new album
         album = gallery.CreateAlbum(album_name)
@@ -438,34 +461,37 @@ def create_color_preset_album(album_name: str) -> str:
             resolve.OpenPage(current_page)
 
         if album:
-            return f"Successfully created album '{album_name}'"
+            return success_response(
+                message=f"Created album '{album_name}'",
+                context={"album_name": album_name},
+            )
         else:
-            return f"Failed to create album '{album_name}'"
+            return error_response("OPERATION_FAILED", f"Failed to create album '{album_name}'")
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error creating album: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error creating album: {str(e)}")
 
 
 @tool()
-def delete_color_preset_album(album_name: str) -> str:
+def delete_color_preset_album(album_name: str) -> Dict[str, Any]:
     """Delete a color preset album.
 
     Args:
         album_name: Name of the album to delete
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -476,7 +502,7 @@ def delete_color_preset_album(album_name: str) -> str:
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Find the album
         album = None
@@ -492,7 +518,7 @@ def delete_color_preset_album(album_name: str) -> str:
             # Return to the original page if we switched
             if current_page != "color":
                 resolve.OpenPage(current_page)
-            return f"Error: Album '{album_name}' not found"
+            return error_response("NOT_FOUND", f"Album '{album_name}' not found")
 
         # Delete the album
         result = gallery.DeleteAlbum(album)
@@ -502,21 +528,24 @@ def delete_color_preset_album(album_name: str) -> str:
             resolve.OpenPage(current_page)
 
         if result:
-            return f"Successfully deleted album '{album_name}'"
+            return success_response(
+                message=f"Deleted album '{album_name}'",
+                context={"album_name": album_name},
+            )
         else:
-            return f"Failed to delete album '{album_name}'"
+            return error_response("OPERATION_FAILED", f"Failed to delete album '{album_name}'")
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error deleting album: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error deleting album: {str(e)}")
 
 
 @tool()
 def export_lut(
     clip_name: str = None, export_path: str = None, lut_format: str = "Cube", lut_size: str = "33Point"
-) -> str:
+) -> Dict[str, Any]:
     """Export a LUT from the current clip's grade.
 
     Args:
@@ -526,15 +555,15 @@ def export_lut(
         lut_size: Size of the LUT. Options: '17Point', '33Point', '65Point'
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -545,7 +574,7 @@ def export_lut(
         # Get the current timeline
         current_timeline = current_project.GetCurrentTimeline()
         if not current_timeline:
-            return "Error: No timeline is currently open"
+            return error_response("NO_TIMELINE", "No timeline is currently open")
 
         # Get the specific clip or current clip
         if clip_name:
@@ -559,7 +588,7 @@ def export_lut(
                     break
 
             if not target_clip:
-                return f"Error: Clip '{clip_name}' not found in the timeline"
+                return error_response("NOT_FOUND", f"Clip '{clip_name}' not found in the timeline")
 
             # Select the clip
             current_timeline.SetCurrentSelectedItem(target_clip)
@@ -584,12 +613,12 @@ def export_lut(
         # Validate LUT format
         valid_formats = ["Cube", "Davinci", "3dl", "Panasonic"]
         if lut_format not in valid_formats:
-            return f"Error: Invalid LUT format. Must be one of: {', '.join(valid_formats)}"
+            return error_response("INVALID_ARG", f"Invalid LUT format. Must be one of: {', '.join(valid_formats)}")
 
         # Validate LUT size
         valid_sizes = ["17Point", "33Point", "65Point"]
         if lut_size not in valid_sizes:
-            return f"Error: Invalid LUT size. Must be one of: {', '.join(valid_sizes)}"
+            return error_response("INVALID_ARG", f"Invalid LUT size. Must be one of: {', '.join(valid_sizes)}")
 
         # Map format string to numeric value expected by DaVinci Resolve API
         format_map = {"Cube": 0, "Davinci": 1, "3dl": 2, "Panasonic": 3}
@@ -600,7 +629,7 @@ def export_lut(
         # Get current clip
         current_clip = current_timeline.GetCurrentVideoItem()
         if not current_clip:
-            return "Error: No clip is currently selected"
+            return error_response("NO_TIMELINE", "No clip is currently selected")
 
         # Create a directory for the export path if it doesn't exist
         export_dir = os.path.dirname(export_path)
@@ -620,15 +649,23 @@ def export_lut(
             resolve.OpenPage(current_page)
 
         if result:
-            return f"Successfully exported LUT to '{export_path}' in {lut_format} format with {lut_size} size"
+            return success_response(
+                message=f"Exported LUT to '{export_path}' in {lut_format} format with {lut_size} size",
+                context={
+                    "clip_name": clip_name,
+                    "export_path": export_path,
+                    "lut_format": lut_format,
+                    "lut_size": lut_size,
+                },
+            )
         else:
-            return "Failed to export LUT"
+            return error_response("OPERATION_FAILED", "Failed to export LUT")
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error exporting LUT: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error exporting LUT: {str(e)}")
 
 
 @resource("resolve://color/lut-formats")
@@ -655,22 +692,22 @@ def get_lut_formats() -> Dict[str, Any]:
 
 
 @tool()
-def export_all_powergrade_luts(export_dir: str) -> str:
+def export_all_powergrade_luts(export_dir: str) -> Dict[str, Any]:
     """Export all PowerGrade presets as LUT files.
 
     Args:
         export_dir: Directory to save the exported LUTs
     """
     if resolve is None:
-        return "Error: Not connected to DaVinci Resolve"
+        return error_response("NOT_CONNECTED", "Not connected to DaVinci Resolve")
 
     project_manager = resolve.GetProjectManager()
     if not project_manager:
-        return "Error: Failed to get Project Manager"
+        return error_response("OPERATION_FAILED", "Failed to get Project Manager")
 
     current_project = project_manager.GetCurrentProject()
     if not current_project:
-        return "Error: No project currently open"
+        return error_response("NO_PROJECT", "No project currently open")
 
     # Switch to color page
     current_page = resolve.GetCurrentPage()
@@ -681,7 +718,7 @@ def export_all_powergrade_luts(export_dir: str) -> str:
         # Get gallery
         gallery = current_project.GetGallery()
         if not gallery:
-            return "Error: Failed to get gallery"
+            return error_response("OPERATION_FAILED", "Failed to get gallery")
 
         # Get PowerGrade album
         powergrade_album = None
@@ -694,12 +731,12 @@ def export_all_powergrade_luts(export_dir: str) -> str:
                     break
 
         if not powergrade_album:
-            return "Error: PowerGrade album not found"
+            return error_response("NOT_FOUND", "PowerGrade album not found")
 
         # Get all stills in the PowerGrade album
         stills = powergrade_album.GetStills()
         if not stills:
-            return "Error: No stills found in PowerGrade album"
+            return error_response("NOT_FOUND", "No stills found in PowerGrade album")
 
         # Create export directory if it doesn't exist
         if not os.path.exists(export_dir):
@@ -707,7 +744,7 @@ def export_all_powergrade_luts(export_dir: str) -> str:
 
         current_timeline = current_project.GetCurrentTimeline()
         if not current_timeline:
-            return "Error: No timeline currently open"
+            return error_response("NO_TIMELINE", "No timeline currently open")
 
         # Export each still as a LUT
         exported_count = 0
@@ -747,15 +784,21 @@ def export_all_powergrade_luts(export_dir: str) -> str:
             resolve.OpenPage(current_page)
 
         if failed_stills:
-            return f"Exported {exported_count} LUTs to '{export_dir}'. Failed to export: {', '.join(failed_stills)}"
+            return success_response(
+                message=f"Exported {exported_count} LUTs to '{export_dir}'. Failed to export: {', '.join(failed_stills)}",
+                context={"export_dir": export_dir, "exported_count": exported_count, "failed_stills": failed_stills},
+            )
         else:
-            return f"Successfully exported all {exported_count} PowerGrade LUTs to '{export_dir}'"
+            return success_response(
+                message=f"Exported all {exported_count} PowerGrade LUTs to '{export_dir}'",
+                context={"export_dir": export_dir, "exported_count": exported_count},
+            )
 
     except Exception as e:
         # Return to the original page if we switched
         if current_page != "color":
             resolve.OpenPage(current_page)
-        return f"Error exporting PowerGrade LUTs: {str(e)}"
+        return error_response("OPERATION_FAILED", f"Error exporting PowerGrade LUTs: {str(e)}")
 
 
 def register(server: FastMCP, context: ResolveContext) -> None:
