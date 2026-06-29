@@ -1511,15 +1511,18 @@ def create_timeline_from_clips(resolve, timeline_name: str, clip_names: list) ->
         return "Error: Failed to get Root Folder"
 
     all_clips = []
-    root_clips = root_folder.GetClipList()
-    if root_clips:
-        all_clips.extend(root_clips)
-    folders = root_folder.GetSubFolderList()
-    for folder in folders:
-        if folder:
-            folder_clips = folder.GetClipList()
-            if folder_clips:
-                all_clips.extend(folder_clips)
+
+    def collect_clips(folder):
+        folder_clips = folder.GetClipList()
+        if folder_clips:
+            all_clips.extend(folder_clips)
+        sub_folders = folder.GetSubFolderList()
+        if sub_folders:
+            for sf in sub_folders:
+                if sf:
+                    collect_clips(sf)
+
+    collect_clips(root_folder)
 
     clip_map = {}
     for clip in all_clips:
@@ -1536,7 +1539,9 @@ def create_timeline_from_clips(resolve, timeline_name: str, clip_names: list) ->
     if not timeline:
         return f"Error: Failed to create timeline '{timeline_name}'"
 
-    current_project.SetCurrentTimeline(timeline)
+    if not current_project.SetCurrentTimeline(timeline):
+        return f"Error: Created timeline '{timeline_name}' but failed to switch to it"
+
     result = media_pool.AppendToTimeline(ordered_clips)
     if result and len(result) > 0:
         return f"Successfully created timeline '{timeline_name}' with {len(ordered_clips)} clips"
