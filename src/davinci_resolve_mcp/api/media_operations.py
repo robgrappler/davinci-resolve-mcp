@@ -1481,3 +1481,64 @@ def normalize_latest_compound_clip(
         )
 
     return f"Successfully renamed latest compound clip in bin '{source_bin_name}' from '{old_name}' to '{new_name}'."
+
+
+def create_timeline_from_clips(resolve, timeline_name: str, clip_names: list) -> str:
+    """Create a new timeline and populate it with the specified clips in order.
+
+    Args:
+        resolve: The DaVinci Resolve instance
+        timeline_name: Name for the new timeline
+        clip_names: List of clip names to add in order
+    """
+    if not resolve:
+        return "Error: Not connected to DaVinci Resolve"
+
+    project_manager = resolve.GetProjectManager()
+    if not project_manager:
+        return "Error: Failed to get Project Manager"
+
+    current_project = project_manager.GetCurrentProject()
+    if not current_project:
+        return "Error: No project currently open"
+
+    media_pool = current_project.GetMediaPool()
+    if not media_pool:
+        return "Error: Failed to get Media Pool"
+
+    root_folder = media_pool.GetRootFolder()
+    if not root_folder:
+        return "Error: Failed to get Root Folder"
+
+    all_clips = []
+    root_clips = root_folder.GetClipList()
+    if root_clips:
+        all_clips.extend(root_clips)
+    folders = root_folder.GetSubFolderList()
+    for folder in folders:
+        if folder:
+            folder_clips = folder.GetClipList()
+            if folder_clips:
+                all_clips.extend(folder_clips)
+
+    clip_map = {}
+    for clip in all_clips:
+        if clip:
+            clip_map[clip.GetName()] = clip
+
+    ordered_clips = []
+    for name in clip_names:
+        if name not in clip_map:
+            return f"Error: Clip '{name}' not found in Media Pool"
+        ordered_clips.append(clip_map[name])
+
+    timeline = media_pool.CreateEmptyTimeline(timeline_name)
+    if not timeline:
+        return f"Error: Failed to create timeline '{timeline_name}'"
+
+    current_project.SetCurrentTimeline(timeline)
+    result = media_pool.AppendToTimeline(ordered_clips)
+    if result and len(result) > 0:
+        return f"Successfully created timeline '{timeline_name}' with {len(ordered_clips)} clips"
+    else:
+        return f"Failed to add clips to timeline '{timeline_name}'"

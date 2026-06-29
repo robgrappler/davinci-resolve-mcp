@@ -94,7 +94,7 @@ def get_timeline_tracks(timeline_name: str = None) -> Dict[str, Any]:
     Args:
         timeline_name: Optional name of the timeline to get tracks from. Uses current timeline if None.
     """
-    from api.timeline_operations import get_timeline_tracks as get_tracks_func
+    from davinci_resolve_mcp.api.timeline_operations import get_timeline_tracks as get_tracks_func
 
     return get_tracks_func(resolve, timeline_name)
 
@@ -152,7 +152,7 @@ def create_empty_timeline(
         video_tracks: Optional number of video tracks (Default is project setting)
         audio_tracks: Optional number of audio tracks (Default is project setting)
     """
-    from api.timeline_operations import create_empty_timeline as create_empty_timeline_func
+    from davinci_resolve_mcp.api.timeline_operations import create_empty_timeline as create_empty_timeline_func
 
     result = create_empty_timeline_func(
         resolve, name, frame_rate, resolution_width, resolution_height, start_timecode, video_tracks, audio_tracks
@@ -172,7 +172,7 @@ def delete_timeline(name: str) -> Dict[str, Any]:
     Args:
         name: The name of the timeline to delete
     """
-    from api.timeline_operations import delete_timeline as delete_timeline_func
+    from davinci_resolve_mcp.api.timeline_operations import delete_timeline as delete_timeline_func
 
     result = delete_timeline_func(resolve, name)
     if result.startswith("Error:"):
@@ -227,7 +227,7 @@ def add_marker(frame: int = None, color: str = "Blue", note: str = "") -> Dict[s
         color: The marker color (Blue, Cyan, Green, Yellow, Red, Pink, Purple, Fuchsia, Rose, Lavender, Sky, Mint, Lemon, Sand, Cocoa, Cream)
         note: Text note to add to the marker
     """
-    from api.timeline_operations import add_marker as add_marker_func
+    from davinci_resolve_mcp.api.timeline_operations import add_marker as add_marker_func
 
     result = add_marker_func(resolve, frame, color, note)
     if result.startswith("Error:"):

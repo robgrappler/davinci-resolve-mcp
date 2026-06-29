@@ -332,20 +332,16 @@ def list_timelines_tool() -> Dict[str, Any]:
 
 
 @tool()
-def add_clip_to_timeline(
-    clip_name: str, timeline_name: str = None, start_frame: int = None, end_frame: int = None
-) -> Dict[str, Any]:
+def add_clip_to_timeline(clip_name: str, timeline_name: str = None) -> Dict[str, Any]:
     """Add a media pool clip to the timeline.
 
     Args:
         clip_name: Name of the clip in the media pool
         timeline_name: Optional timeline to target (uses current if not specified)
-        start_frame: Optional start frame (in point) to use from the source clip
-        end_frame: Optional end frame (out point) to use from the source clip
     """
     from davinci_resolve_mcp.api.media_operations import add_clip_to_timeline as add_clip_func
 
-    result = add_clip_func(resolve, clip_name, timeline_name, start_frame, end_frame)
+    result = add_clip_func(resolve, clip_name, timeline_name)
     if isinstance(result, str):
         if result.startswith("Error:"):
             return error_response("OPERATION_FAILED", result[7:].strip())

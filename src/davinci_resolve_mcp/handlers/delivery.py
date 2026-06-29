@@ -20,7 +20,7 @@ resolve: Optional[Any] = None
 @resource("resolve://delivery/render-presets")
 def get_render_presets() -> List[Dict[str, Any]]:
     """Get all available render presets in the current project."""
-    from api.delivery_operations import get_render_presets as get_presets_func
+    from davinci_resolve_mcp.api.delivery_operations import get_render_presets as get_presets_func
 
     return get_presets_func(resolve)
 
@@ -34,7 +34,7 @@ def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_
         timeline_name: Name of the timeline to render (uses current if None)
         use_in_out_range: Whether to render only the in/out range instead of entire timeline
     """
-    from api.delivery_operations import add_to_render_queue as add_queue_func
+    from davinci_resolve_mcp.api.delivery_operations import add_to_render_queue as add_queue_func
 
     if resolve is None:
         return error_response(
@@ -54,7 +54,7 @@ def add_to_render_queue(preset_name: str, timeline_name: str = None, use_in_out_
 @tool()
 def start_render() -> Dict[str, Any]:
     """Start rendering the jobs in the render queue."""
-    from api.delivery_operations import start_render as start_render_func
+    from davinci_resolve_mcp.api.delivery_operations import start_render as start_render_func
 
     if resolve is None:
         return error_response(
@@ -72,7 +72,7 @@ def start_render() -> Dict[str, Any]:
 @resource("resolve://delivery/render-queue/status")
 def get_render_queue_status() -> Dict[str, Any]:
     """Get the status of jobs in the render queue."""
-    from api.delivery_operations import get_render_queue_status as get_status_func
+    from davinci_resolve_mcp.api.delivery_operations import get_render_queue_status as get_status_func
 
     return get_status_func(resolve)
 
@@ -80,7 +80,7 @@ def get_render_queue_status() -> Dict[str, Any]:
 @tool()
 def clear_render_queue() -> Dict[str, Any]:
     """Clear all jobs from the render queue."""
-    from api.delivery_operations import clear_render_queue as clear_queue_func
+    from davinci_resolve_mcp.api.delivery_operations import clear_render_queue as clear_queue_func
 
     if resolve is None:
         return error_response(
