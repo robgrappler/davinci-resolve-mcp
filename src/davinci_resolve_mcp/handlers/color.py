@@ -19,7 +19,7 @@ resolve: Optional[Any] = None
 @resource("resolve://color/current-node")
 def get_current_color_node() -> Dict[str, Any]:
     """Get information about the current node in the color page."""
-    from api.color_operations import get_current_node as get_node_func
+    from davinci_resolve_mcp.api.color_operations import get_current_node as get_node_func
 
     return get_node_func(resolve)
 
@@ -31,7 +31,7 @@ def get_color_wheel_params(node_index: int = None) -> Dict[str, Any]:
     Args:
         node_index: Index of the node to get color wheels from (uses current node if None)
     """
-    from api.color_operations import get_color_wheels as get_wheels_func
+    from davinci_resolve_mcp.api.color_operations import get_color_wheels as get_wheels_func
 
     return get_wheels_func(resolve, node_index)
 
@@ -44,7 +44,7 @@ def apply_lut(lut_path: str, node_index: int = None) -> Dict[str, Any]:
         lut_path: Path to the LUT file to apply
         node_index: Index of the node to apply the LUT to (uses current node if None)
     """
-    from api.color_operations import apply_lut as apply_lut_func
+    from davinci_resolve_mcp.api.color_operations import apply_lut as apply_lut_func
 
     result = apply_lut_func(resolve, lut_path, node_index)
     if isinstance(result, str):
@@ -67,7 +67,7 @@ def set_color_wheel_param(wheel: str, param: str, value: float, node_index: int 
         value: The value to set (typically between -1.0 and 1.0)
         node_index: Index of the node to set parameter for (uses current node if None)
     """
-    from api.color_operations import set_color_wheel_param as set_param_func
+    from davinci_resolve_mcp.api.color_operations import set_color_wheel_param as set_param_func
 
     result = set_param_func(resolve, wheel, param, value, node_index)
     if isinstance(result, str):
@@ -93,7 +93,7 @@ def add_node(node_type: str = "serial", label: str = None) -> Dict[str, Any]:
         node_type: Type of node to add. Options: 'serial', 'parallel', 'layer'
         label: Optional label/name for the new node
     """
-    from api.color_operations import add_node as add_node_func
+    from davinci_resolve_mcp.api.color_operations import add_node as add_node_func
 
     result = add_node_func(resolve, node_type, label)
     if isinstance(result, str):
@@ -115,7 +115,7 @@ def copy_grade(source_clip_name: str = None, target_clip_name: str = None, mode:
         target_clip_name: Name of the target clip to apply grade to (uses current clip if None)
         mode: What to copy - 'full' (entire grade), 'current_node', or 'all_nodes'
     """
-    from api.color_operations import copy_grade as copy_grade_func
+    from davinci_resolve_mcp.api.color_operations import copy_grade as copy_grade_func
 
     result = copy_grade_func(resolve, source_clip_name, target_clip_name, mode)
     if isinstance(result, str):
